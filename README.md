@@ -108,7 +108,8 @@ Upon receiving a webhook, the application:
    - PR Author
    - Repository Name
    - Event Type (e.g., pr:opened)
-3. Prints this information in the console.
+3. Fetches the modified files and their contents from PR
+4. Prints this information in the console.
 
 ---
 
@@ -116,9 +117,6 @@ Upon receiving a webhook, the application:
 
 The following features are under development:
 
-- Authentication with Bitbucket API
-- Fetching the list of modified files in the PR
-- Fetching the content of the modified files
 - Sending code to GPT/AI for automated review
 - Generating improvement suggestions
 
