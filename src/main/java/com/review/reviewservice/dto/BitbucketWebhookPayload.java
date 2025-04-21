@@ -1,6 +1,5 @@
 package com.review.reviewservice.dto;
 
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
@@ -17,6 +16,17 @@ public class BitbucketWebhookPayload {
         private int id;
         private String title;
         private Author author;
+        private Links links;
+    }
+
+    @Data
+    public static class Links {
+        private Link diffstat;
+    }
+
+    @Data
+    public static class Link {
+        private String href;
     }
 
     @Data
