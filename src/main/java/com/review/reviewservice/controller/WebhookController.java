@@ -1,25 +1,26 @@
 package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.BitbucketWebhookPayload;
+import com.review.reviewservice.service.BitbucketService;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
+import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/webhook")
 public class WebhookController {
 
-    public WebhookController() {
+    private final BitbucketService bitbucketService;
+
+    @Autowired
+    public WebhookController(BitbucketService bitbucketService) {
+        this.bitbucketService = bitbucketService;
     }
 
     @PostMapping("/bitbucket")
-    public ResponseEntity<String> recieveWebhook(@RequestBody BitbucketWebhookPayload payload) {
-        System.out.println("Webhook: \n");
-        System.out.println(payload.toString());
-
-        return ResponseEntity.ok("Files fetched!");
+    public ResponseEntity<String> receiveWebhook(@RequestBody BitbucketWebhookPayload payload) {
+        bitbucketService.getModifiedFiles(payload);
+        return ResponseEntity.ok("Webhook received!");
     }
 }

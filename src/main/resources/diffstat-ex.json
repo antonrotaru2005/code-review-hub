@@ -1,0 +1,33 @@
+{
+  "values": [
+    {
+      "type": "diffstat",
+      "lines_added": 2,
+      "lines_removed": 0,
+      "status": "modified",
+      "old": {
+        "path": "src/main/java/com/review/reviewservice/controller/WebhookController.java",
+        "type": "commit_file",
+        "escaped_path": "src/main/java/com/review/reviewservice/controller/WebhookController.java",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/src/28bfb512e40bc350efd114fb107d612f7e888030/src/main/java/com/review/reviewservice/controller/WebhookController.java"
+          }
+        }
+      },
+      "new": {
+        "path": "src/main/java/com/review/reviewservice/controller/WebhookController.java",
+        "type": "commit_file",
+        "escaped_path": "src/main/java/com/review/reviewservice/controller/WebhookController.java",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/src/9aa2242ce276b5e27c4447023386eb44b94acd7a/src/main/java/com/review/reviewservice/controller/WebhookController.java"
+          }
+        }
+      }
+    }
+  ],
+  "pagelen": 500,
+  "size": 1,
+  "page": 1
+}

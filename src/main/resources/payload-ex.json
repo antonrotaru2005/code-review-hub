@@ -1,0 +1,258 @@
+{
+  "repository": {
+    "type": "repository",
+    "full_name": "antonrotaru/code-review-app",
+    "links": {
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app"
+      },
+      "html": {
+        "href": "https://bitbucket.org/antonrotaru/code-review-app"
+      },
+      "avatar": {
+        "href": "https://bytebucket.org/ravatar/%7Bfc8da936-cc07-4302-a8c8-c4d18ef84190%7D?ts=default"
+      }
+    },
+    "name": "Code Review APP",
+    "scm": "git",
+    "website": null,
+    "owner": {
+      "display_name": "antonrotaru",
+      "links": {
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/%7Bf13fa889-4786-400a-9d63-5785bc0738c1%7D"
+        },
+        "avatar": {
+          "href": "https://bitbucket.org/account/antonrotaru/avatar/"
+        },
+        "html": {
+          "href": "https://bitbucket.org/%7Bf13fa889-4786-400a-9d63-5785bc0738c1%7D/"
+        }
+      },
+      "type": "team",
+      "uuid": "{f13fa889-4786-400a-9d63-5785bc0738c1}",
+      "username": "antonrotaru"
+    },
+    "workspace": {
+      "type": "workspace",
+      "uuid": "{f13fa889-4786-400a-9d63-5785bc0738c1}",
+      "name": "antonrotaru",
+      "slug": "antonrotaru",
+      "links": {
+        "avatar": {
+          "href": "https://bitbucket.org/workspaces/antonrotaru/avatar/?ts=1742993384"
+        },
+        "html": {
+          "href": "https://bitbucket.org/antonrotaru/"
+        },
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/antonrotaru"
+        }
+      }
+    },
+    "is_private": true,
+    "project": {
+      "type": "project",
+      "key": "CRMEN",
+      "uuid": "{0fdc70fe-0827-44e5-a9d9-9d8f2d892ec4}",
+      "name": "CRMentor",
+      "links": {
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/workspaces/antonrotaru/projects/CRMEN"
+        },
+        "html": {
+          "href": "https://bitbucket.org/antonrotaru/workspace/projects/CRMEN"
+        },
+        "avatar": {
+          "href": "https://bitbucket.org/antonrotaru/workspace/projects/CRMEN/avatar/32?ts=1742994951"
+        }
+      }
+    },
+    "uuid": "{fc8da936-cc07-4302-a8c8-c4d18ef84190}",
+    "parent": null
+  },
+  "actor": {
+    "display_name": "Anton Rotaru",
+    "links": {
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/users/%7Bbf1a7c68-b731-462f-84b5-10998c3b7750%7D"
+      },
+      "avatar": {
+        "href": "https://secure.gravatar.com/avatar/9a6f4d070ab0f9cae1868c30b39e3da1?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAR-5.png"
+      },
+      "html": {
+        "href": "https://bitbucket.org/%7Bbf1a7c68-b731-462f-84b5-10998c3b7750%7D/"
+      }
+    },
+    "type": "user",
+    "uuid": "{bf1a7c68-b731-462f-84b5-10998c3b7750}",
+    "account_id": "712020:c8b6cabd-80f8-4337-96e5-47bf0f324f59",
+    "nickname": "Anton Rotaru"
+  },
+  "pullrequest": {
+    "comment_count": 0,
+    "task_count": 0,
+    "type": "pullrequest",
+    "id": 17,
+    "title": "Test commit",
+    "description": "",
+    "rendered": {
+      "title": {
+        "type": "rendered",
+        "raw": "Test commit",
+        "markup": "markdown",
+        "html": "<p>Test commit</p>"
+      },
+      "description": {
+        "type": "rendered",
+        "raw": "",
+        "markup": "markdown",
+        "html": ""
+      }
+    },
+    "state": "OPEN",
+    "merge_commit": null,
+    "close_source_branch": false,
+    "closed_by": null,
+    "author": {
+      "display_name": "Anton Rotaru",
+      "links": {
+        "self": {
+          "href": "https://api.bitbucket.org/2.0/users/%7Bbf1a7c68-b731-462f-84b5-10998c3b7750%7D"
+        },
+        "avatar": {
+          "href": "https://secure.gravatar.com/avatar/9a6f4d070ab0f9cae1868c30b39e3da1?d=https%3A%2F%2Favatar-management--avatars.us-west-2.prod.public.atl-paas.net%2Finitials%2FAR-5.png"
+        },
+        "html": {
+          "href": "https://bitbucket.org/%7Bbf1a7c68-b731-462f-84b5-10998c3b7750%7D/"
+        }
+      },
+      "type": "user",
+      "uuid": "{bf1a7c68-b731-462f-84b5-10998c3b7750}",
+      "account_id": "712020:c8b6cabd-80f8-4337-96e5-47bf0f324f59",
+      "nickname": "Anton Rotaru"
+    },
+    "reason": "",
+    "created_on": "2025-03-28T15:16:53.967458+00:00",
+    "updated_on": "2025-03-28T15:16:54.776236+00:00",
+    "destination": {
+      "branch": {
+        "name": "main"
+      },
+      "commit": {
+        "hash": "28bfb512e40b",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/commit/28bfb512e40b"
+          },
+          "html": {
+            "href": "https://bitbucket.org/antonrotaru/code-review-app/commits/28bfb512e40b"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "type": "repository",
+        "full_name": "antonrotaru/code-review-app",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app"
+          },
+          "html": {
+            "href": "https://bitbucket.org/antonrotaru/code-review-app"
+          },
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7Bfc8da936-cc07-4302-a8c8-c4d18ef84190%7D?ts=default"
+          }
+        },
+        "name": "Code Review APP",
+        "uuid": "{fc8da936-cc07-4302-a8c8-c4d18ef84190}"
+      }
+    },
+    "source": {
+      "branch": {
+        "name": "feature/test",
+        "links": {},
+        "sync_strategies": [
+          "merge_commit",
+          "rebase"
+        ]
+      },
+      "commit": {
+        "hash": "9aa2242ce276",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/commit/9aa2242ce276"
+          },
+          "html": {
+            "href": "https://bitbucket.org/antonrotaru/code-review-app/commits/9aa2242ce276"
+          }
+        },
+        "type": "commit"
+      },
+      "repository": {
+        "type": "repository",
+        "full_name": "antonrotaru/code-review-app",
+        "links": {
+          "self": {
+            "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app"
+          },
+          "html": {
+            "href": "https://bitbucket.org/antonrotaru/code-review-app"
+          },
+          "avatar": {
+            "href": "https://bytebucket.org/ravatar/%7Bfc8da936-cc07-4302-a8c8-c4d18ef84190%7D?ts=default"
+          }
+        },
+        "name": "Code Review APP",
+        "uuid": "{fc8da936-cc07-4302-a8c8-c4d18ef84190}"
+      }
+    },
+    "reviewers": [],
+    "participants": [],
+    "links": {
+      "self": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17"
+      },
+      "html": {
+        "href": "https://bitbucket.org/antonrotaru/code-review-app/pull-requests/17"
+      },
+      "commits": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/commits"
+      },
+      "approve": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/approve"
+      },
+      "request-changes": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/request-changes"
+      },
+      "diff": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/diff/antonrotaru/code-review-app:9aa2242ce276%0D28bfb512e40b?from_pullrequest_id=17&topic=true"
+      },
+      "diffstat": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/diffstat/antonrotaru/code-review-app:9aa2242ce276%0D28bfb512e40b?from_pullrequest_id=17&topic=true"
+      },
+      "comments": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/comments"
+      },
+      "activity": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/activity"
+      },
+      "merge": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/merge"
+      },
+      "decline": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/decline"
+      },
+      "statuses": {
+        "href": "https://api.bitbucket.org/2.0/repositories/antonrotaru/code-review-app/pullrequests/17/statuses"
+      }
+    },
+    "summary": {
+      "type": "rendered",
+      "raw": "",
+      "markup": "markdown",
+      "html": ""
+    }
+  }
+}
