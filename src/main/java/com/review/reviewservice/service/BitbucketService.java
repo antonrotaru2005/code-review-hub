@@ -2,6 +2,7 @@ package com.review.reviewservice.service;
 
 import com.review.reviewservice.config.BitbucketProperties;
 import com.review.reviewservice.dto.*;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -11,12 +12,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
 import java.net.URI;
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
+@Slf4j
 @Service
 public class BitbucketService {
 
@@ -58,8 +57,7 @@ public class BitbucketService {
                 }
             }
         } catch (Exception e) {
-            System.err.println("Eroare la extragerea fișierelor din PR: " + e.getMessage());
-            e.printStackTrace();
+            log.error("Error on extracting modified files from PR: {}", e.getMessage());
         }
 
         return files;

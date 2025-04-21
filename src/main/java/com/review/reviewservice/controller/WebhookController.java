@@ -3,7 +3,6 @@ package com.review.reviewservice.controller;
 import com.review.reviewservice.dto.BitbucketWebhookPayload;
 import com.review.reviewservice.dto.FileData;
 import com.review.reviewservice.service.BitbucketService;
-import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
