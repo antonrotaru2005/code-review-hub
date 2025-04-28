@@ -1,5 +1,7 @@
 package com.review.reviewservice.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.review.reviewservice.config.BitbucketProperties;
 import com.review.reviewservice.dto.*;
 import lombok.extern.slf4j.Slf4j;
@@ -20,13 +22,14 @@ import java.util.List;
 public class BitbucketService {
 
     private final RestTemplate restTemplate;
-
     private final BitbucketProperties properties;
+    private final ObjectMapper objectMapper;
 
     @Autowired
     public BitbucketService(RestTemplate restTemplate, BitbucketProperties properties) {
         this.restTemplate = restTemplate;
         this.properties = properties;
+        this.objectMapper = new ObjectMapper();
     }
 
     public List<FileData> getModifiedFiles(BitbucketWebhookPayload payload) {
@@ -44,9 +47,9 @@ public class BitbucketService {
             );
 
             if (response.getBody() != null && response.getBody().getValues() != null) {
-                for(DiffstatEntry entry : response.getBody().getValues()) {
+                for (DiffstatEntry entry : response.getBody().getValues()) {
                     FileInfo file = entry.get_new();
-                    if(file != null && file.getPath() != null) {
+                    if (file != null && file.getPath() != null) {
                         String fileContentUrl = file.getLinks().getSelf().getHref();
                         ResponseEntity<String> contentResponse = restTemplate.exchange(
                                 URI.create(fileContentUrl), HttpMethod.GET, request, String.class
@@ -57,9 +60,34 @@ public class BitbucketService {
                 }
             }
         } catch (Exception e) {
-            log.error("Error on extracting modified files from PR: {}", e.getMessage());
+            log.error("Error on extracting modified files from PR: {}", e.getMessage(), e);
         }
 
         return files;
+    }
+
+    public void postCommentToPullRequest(BitbucketWebhookPayload payload, String comment) {
+        try {
+            String commentUrl = String.format("https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
+                    payload.getRepository().getFullName(), payload.getPullRequest().getId());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth(properties.getUsername(), properties.getPassword());
+            headers.set("Content-Type", "application/json");
+
+            ObjectNode commentPayload = objectMapper.createObjectNode();
+            ObjectNode contentNode = objectMapper.createObjectNode();
+            contentNode.put("raw", comment);
+            commentPayload.set("content", contentNode);
+
+            String commentPayloadString = objectMapper.writeValueAsString(commentPayload);
+            log.info("Bitbucket comment payload: {}", commentPayloadString);
+
+            HttpEntity<String> entity = new HttpEntity<>(commentPayloadString, headers);
+
+            restTemplate.exchange(commentUrl, HttpMethod.POST, entity, String.class);
+        } catch (Exception e) {
+            log.error("Error posting comment to PR: {}", e.getMessage(), e);
+        }
     }
 }

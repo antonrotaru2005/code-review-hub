@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: Review-service
+bitbucket:
+  username: antonrotaru-admin
+  password: ATBBqHafzmYDGdDxeYh2wXW3Kc7R6EAF1E96
+chatgpt:
+  api-url: https://api.openai.com/v1/chat/completions
+  api-key: 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
+  model: gpt-3.5-turbo
