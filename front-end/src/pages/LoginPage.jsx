@@ -8,7 +8,6 @@ function LoginPage() {
     const [userNotFound, setUserNotFound] = useState(false);
     const location = useLocation();
 
-    // Verificăm dacă avem un parametru de eroare în URL
     useEffect(() => {
         const query = new URLSearchParams(location.search);
         if (query.get('error') === 'user_not_found') {
@@ -17,9 +16,8 @@ function LoginPage() {
     }, [location]);
 
     const handleLogin = () => {
-        // Redirecționare spre login cu Bitbucket și action=login
-        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket?action=login`;
-    };
+        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket-login`;
+    }
 
     return (
         <div className="d-flex flex-column min-vh-100">

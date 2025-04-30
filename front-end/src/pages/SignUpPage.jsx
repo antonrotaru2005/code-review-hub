@@ -4,14 +4,10 @@ import { Navbar, Nav, Container, Button, Card, Alert } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import config from '../config';
 
-// Note: Ensure you have installed the required dependencies:
-// Run `npm install react-bootstrap bootstrap react-router-dom` in your project directory.
-
 function SignUpPage() {
     const [userExists, setUserExists] = useState(false);
     const location = useLocation();
 
-    // Check for error query parameter from backend
     useEffect(() => {
         const query = new URLSearchParams(location.search);
         if (query.get('error') === 'user_exists') {
@@ -20,8 +16,7 @@ function SignUpPage() {
     }, [location]);
 
     const handleSignUp = () => {
-        // Redirect to Bitbucket OAuth endpoint with action=signup
-        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket?action=signup`;
+        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket-signup`;
     };
 
     return (

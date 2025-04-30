@@ -3,9 +3,6 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Nav, Container, Button, Carousel } from 'react-bootstrap';
 import { Link } from 'react-router-dom';
 
-// Note: Ensure you have installed the required dependencies:
-// Run `npm install react-bootstrap bootstrap react-router-dom` in your project directory.
-
 function HomePage() {
     return (
         <div className="d-flex flex-column min-vh-100">

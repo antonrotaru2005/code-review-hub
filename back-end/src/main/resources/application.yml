@@ -16,7 +16,15 @@ spring:
     oauth2:
       client:
         registration:
-          bitbucket:
+          bitbucket-login:
+            provider: bitbucket
+            client-id: agkLVpvpHWfav2J9BY
+            client-secret: ff7RctV6eH2T2KckLkhk4yjJ57WtnKbu
+            scope: account,repository,pullrequest,email
+            authorization-grant-type: authorization_code
+            redirect-uri: "{baseUrl}/login/oauth2/code/{registrationId}"
+          bitbucket-signup:
+            provider: bitbucket
             client-id: agkLVpvpHWfav2J9BY
             client-secret: ff7RctV6eH2T2KckLkhk4yjJ57WtnKbu
             scope: account,repository,pullrequest,email
