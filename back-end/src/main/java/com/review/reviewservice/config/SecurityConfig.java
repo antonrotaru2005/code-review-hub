@@ -7,10 +7,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
-import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequestResolver;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
@@ -20,48 +19,54 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
-    private final OAuth2AuthorizationRequestResolver authorizationRequestResolver;
     private final String frontendUrl;
 
     @Autowired
-    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
-                          OAuth2AuthorizationRequestResolver authorizationRequestResolver,
-                          @Value("${frontend.url}") String frontendUrl) {
+    public SecurityConfig(
+            CustomOAuth2UserService customOAuth2UserService,
+            @Value("${frontend.url}") String frontendUrl) {
         this.customOAuth2UserService = customOAuth2UserService;
-        this.authorizationRequestResolver = authorizationRequestResolver;
         this.frontendUrl = frontendUrl;
     }
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-                .csrf(csrf -> csrf.disable())
+                // Disable CSRF for API usage
+                .csrf(AbstractHttpConfigurer::disable)
+
+                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/feedbacks/**").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
+
+                // OAuth2 Login configuration
                 .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(endpoint -> endpoint
-                                .authorizationRequestResolver(authorizationRequestResolver)
-                        )
-                        .loginPage("/oauth2/authorization/bitbucket")
+                        // Custom success and failure handlers
                         .successHandler(authenticationSuccessHandler())
                         .failureHandler(authenticationFailureHandler())
+                        // Use our service to process user info
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )
                 )
+
+                // Logout redirection
                 .logout(logout -> logout
                         .logoutSuccessUrl(frontendUrl)
                 );
+
         return http.build();
     }
 
+    /**
+     * Handles authentication failures by redirecting to front-end with error codes.
+     */
     @Bean
     public AuthenticationFailureHandler authenticationFailureHandler() {
         return (request, response, exception) -> {
@@ -76,9 +81,11 @@ public class SecurityConfig {
         };
     }
 
+    /**
+     * Handles successful authentication by redirecting to user profile page.
+     */
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
-        log.info("Authentication successful, redirecting to {}/user", frontendUrl);
         return new SimpleUrlAuthenticationSuccessHandler(frontendUrl + "/user");
     }
 }
