@@ -1,26 +1,35 @@
 package com.review.reviewservice.config;
 
+import com.review.reviewservice.exceptions.UserAlreadyExistsException;
+import com.review.reviewservice.exceptions.UserNotFoundException;
 import com.review.reviewservice.service.CustomOAuth2UserService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
+import lombok.extern.slf4j.Slf4j;
 
+@Slf4j
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
 public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
+    private final String frontendUrl;
 
     @Autowired
-    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService) {
+    public SecurityConfig(CustomOAuth2UserService customOAuth2UserService,
+                          @Value("${frontend.url}") String frontendUrl) {
         this.customOAuth2UserService = customOAuth2UserService;
+        this.frontendUrl = frontendUrl;
     }
 
     @Bean
@@ -34,23 +43,54 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
 
-                .oauth2Login(oauth -> oauth
-                        .loginPage("/oauth2/authorization/bitbucket")
-                        .successHandler(authenticationSuccessHandler()) // redirecționare custom
-                        .userInfoEndpoint(userInfo -> userInfo
-                                .userService(customOAuth2UserService)
-                        )
-                )
+                    .oauth2Login(oauth -> oauth
+                                    .loginPage("/oauth2/authorization/bitbucket")
+                                    .successHandler(authenticationSuccessHandler())
+                                    .userInfoEndpoint(userInfo -> userInfo
+                                            .userService(customOAuth2UserService)
+                                    )
+                                    .failureHandler((request, response, exception) -> {
+                                        log.error("OAuth2 authentication failed: {}", exception.getMessage());
+                                        if (exception instanceof UserAlreadyExistsException) {
+                                            log.info("Redirecting to login with error: user_exists");
+                                            response.sendRedirect(frontendUrl + "/login?error=user_exists");
+                                        } else if (exception instanceof UserNotFoundException) {
+                                            log.info("Redirecting to signup with error: user_not_found");
+                                            response.sendRedirect(frontendUrl + "/signup?error=user_not_found");
+                                        } else {
+                                            log.info("Redirecting to login with error: auth_failed");
+                                            response.sendRedirect(frontendUrl + "/login?error=auth_failed");
+                                        }
+                                    })
+                            )
 
                 .logout(logout -> logout
-                        .logoutSuccessUrl("http://localhost:3000") // redirect la frontend
+                        .logoutSuccessUrl(frontendUrl) // redirect la frontend
                 );
 
         return http.build();
     }
 
+    //asta chatul mia zis sa adaug
+    @Bean
+    public AuthenticationFailureHandler authenticationFailureHandler() {
+        return (request, response, exception) -> {
+            log.error("OAuth2 authentication failed: {}", exception.getMessage());
+
+            if (exception instanceof UserAlreadyExistsException) {
+                response.sendRedirect(frontendUrl + "/signup?error=user_exists");
+            } else if (exception instanceof UserNotFoundException) {
+                response.sendRedirect(frontendUrl + "/login?error=user_not_found");
+            } else {
+                response.sendRedirect(frontendUrl + "/login?error=auth_failed");
+            }
+        };
+    }
+
+
     @Bean
     public AuthenticationSuccessHandler authenticationSuccessHandler() {
-        return new SimpleUrlAuthenticationSuccessHandler("http://localhost:3000/user");
+        log.info("Authentication successful, redirecting to {}/user", frontendUrl);
+        return new SimpleUrlAuthenticationSuccessHandler(frontendUrl + "/user");
     }
 }

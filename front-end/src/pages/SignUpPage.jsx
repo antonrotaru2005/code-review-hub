@@ -1,24 +1,27 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Nav, Container, Button, Card, Alert } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
 import config from '../config';
 
-function LoginPage() {
-    const [userNotFound, setUserNotFound] = useState(false);
+// Note: Ensure you have installed the required dependencies:
+// Run `npm install react-bootstrap bootstrap react-router-dom` in your project directory.
+
+function SignUpPage() {
+    const [userExists, setUserExists] = useState(false);
     const location = useLocation();
 
-    // Verificăm dacă avem un parametru de eroare în URL
+    // Check for error query parameter from backend
     useEffect(() => {
         const query = new URLSearchParams(location.search);
-        if (query.get('error') === 'user_not_found') {
-            setUserNotFound(true);
+        if (query.get('error') === 'user_exists') {
+            setUserExists(true);
         }
     }, [location]);
 
-    const handleLogin = () => {
-        // Redirecționare spre login cu Bitbucket și action=login
-        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket?action=login`;
+    const handleSignUp = () => {
+        // Redirect to Bitbucket OAuth endpoint with action=signup
+        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket?action=signup`;
     };
 
     return (
@@ -44,14 +47,18 @@ function LoginPage() {
                         <div className="col-md-6 col-lg-4">
                             <Card className="shadow-lg border-0 animate__animated animate__fadeIn">
                                 <Card.Body className="p-5">
-                                    <h2 className="text-center mb-4">Login to Code Review Hub</h2>
-                                    <p className="text-center text-muted mb-4">Sign in with your Bitbucket account to continue</p>
+                                    <h2 className="text-center mb-4">Sign Up for Code Review Hub</h2>
+                                    <p className="text-center text-muted mb-4">
+                                        Create an account using your Bitbucket credentials
+                                    </p>
 
-                                    {/* Afișăm eroarea dacă userul nu există */}
-                                    {userNotFound && (
-                                        <Alert variant="danger" className="text-center">
-                                            This user does not exist.{' '}
-                                            <Link to="/signup" className="alert-link">Sign up instead</Link>.
+                                    {/* Display error if user already exists */}
+                                    {userExists && (
+                                        <Alert variant="warning" className="text-center">
+                                            An account with this Bitbucket user already exists.{' '}
+                                            <Link to="/login" className="alert-link">
+                                                Please log in instead.
+                                            </Link>
                                         </Alert>
                                     )}
 
@@ -59,33 +66,33 @@ function LoginPage() {
                                         <Button
                                             variant="primary"
                                             size="lg"
-                                            onClick={handleLogin}
+                                            onClick={handleSignUp}
                                             className="d-flex align-items-center justify-content-center"
+                                            disabled={userExists}
                                         >
                                             <svg
                                                 xmlns="http://www.w3.org/2000/svg"
                                                 width="20"
                                                 height="20"
                                                 fill="currentColor"
-                                                className="bi bi-box-arrow-in-right me-2"
+                                                className="bi bi-person-plus me-2"
                                                 viewBox="0 0 16 16"
                                             >
                                                 <path
-                                                    fillRule="evenodd"
-                                                    d="M6 3.5a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v9a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-2a.5.5 0 0 0-1 0v2A1.5 1.5 0 0 0 6.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-9A1.5 1.5 0 0 0 14.5 2h-8A1.5 1.5 0 0 0 5 3.5v2a.5.5 0 0 0 1 0v-2z"
+                                                    d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z"
                                                 />
                                                 <path
                                                     fillRule="evenodd"
-                                                    d="M11.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 1 0-.708.708L10.293 7.5H1.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"
+                                                    d="M13.5 5a.5.5 0 0 1 .5.5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z"
                                                 />
                                             </svg>
-                                            Login with Bitbucket
+                                            Sign Up with Bitbucket
                                         </Button>
                                     </div>
                                     <p className="text-center mt-4">
-                                        Don't have an account?{' '}
-                                        <Link to="/signup" className="text-primary text-decoration-none">
-                                            Sign Up
+                                        Already have an account?{' '}
+                                        <Link to="/login" className="text-primary text-decoration-none">
+                                            Log In
                                         </Link>
                                     </p>
                                 </Card.Body>
@@ -129,4 +136,4 @@ function LoginPage() {
     );
 }
 
-export default LoginPage;
+export default SignUpPage;

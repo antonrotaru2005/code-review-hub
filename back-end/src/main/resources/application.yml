@@ -48,3 +48,6 @@ logging:
     liquibase: DEBUG
     org.springframework.security.oauth2: TRACE
     org.springframework.security.web: DEBUG
+
+frontend:
+  url: http://localhost:3000

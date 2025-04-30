@@ -1,6 +1,8 @@
 package com.review.reviewservice.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.review.reviewservice.exceptions.UserAlreadyExistsException;
+import com.review.reviewservice.exceptions.UserNotFoundException;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.RoleRepository;
@@ -23,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
-
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,16 +45,64 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        // 1. Load basic user info from Bitbucket
+        // Log the action parameter
+        String action = userRequest.getAdditionalParameters().get("action") != null
+                ? userRequest.getAdditionalParameters().get("action").toString()
+                : "login";
+        log.info("Processing OAuth2 request with action: {}", action);
+
+        // Load basic user info from Bitbucket
         OAuth2User oauthUser = new DefaultOAuth2UserService().loadUser(userRequest);
 
-        // 2. Extract the username attribute
+        // Extract the username attribute
         String username = oauthUser.getAttribute("username");
         if (username == null) {
+            log.error("Username attribute not found in OAuth2 user info");
             throw new OAuth2AuthenticationException("Username attribute not found in OAuth2 user info");
         }
+        log.info("Extracted username: {}", username);
 
-        // 3. Extract email via the Bitbucket emails endpoint
+        // Check if user exists
+        boolean userExists = userRepository.findByUsername(username).isPresent();
+
+        // Handle signup action
+        if ("signup".equals(action)) {
+            if (userExists) {
+                log.warn("User with username {} already exists for signup", username);
+                throw new UserAlreadyExistsException("User with username " + username + " already exists. Please try logging in.");
+            }
+            // Proceed with user creation
+            log.info("Creating new user: {}", username);
+            return createNewUser(oauthUser, userRequest, username);
+        }
+
+        // Handle login action
+        if ("login".equals(action)) {
+            if (!userExists) {
+                log.warn("User with username {} does not exist for login", username);
+                throw new UserNotFoundException("User with username " + username + " does not exist. Please sign up first.");
+            }
+            // Load existing user
+            log.info("Loading existing user: {}", username);
+            User appUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new IllegalStateException("User not found after existence check"));
+
+            // Build authorities for Spring Security
+            Set<GrantedAuthority> authorities = appUser.getRoles().stream()
+                    .map(r -> new SimpleGrantedAuthority(r.getName()))
+                    .collect(Collectors.toSet());
+
+            log.info("Returning OAuth2User for username: {}", username);
+            return new DefaultOAuth2User(authorities, oauthUser.getAttributes(), "username");
+        }
+
+        // Fallback for unexpected action
+        log.error("Invalid action: {}", action);
+        throw new OAuth2AuthenticationException("Invalid action: " + action);
+    }
+
+    private OAuth2User createNewUser(OAuth2User oauthUser, OAuth2UserRequest userRequest, String username) {
+        // Extract email via the Bitbucket emails endpoint
         String email = null;
         try {
             String token = userRequest.getAccessToken().getTokenValue();
@@ -72,7 +121,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
 
             JsonNode values = Objects.requireNonNull(resp.getBody()).get("values");
             if (values != null && values.isArray()) {
-                // find the primary confirmed email, or fallback to the first
+                // Find the primary confirmed email, or fallback to the first
                 for (JsonNode node : values) {
                     if (node.path("is_primary").asBoolean(false)
                             && node.path("is_confirmed").asBoolean(false)) {
@@ -84,37 +133,29 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                     email = values.get(0).path("email").asText(null);
                 }
             }
+            log.info("Extracted email: {}", email);
         } catch (Exception ex) {
-            // log warning and continue without email
             log.warn("Failed to fetch email from Bitbucket: {}", ex.getMessage());
         }
 
-        // 4. Ensure default role exists
+        // Ensure default role exists
         Role defaultRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new IllegalStateException("ROLE_USER not found"));
 
-        // 5. Create or update local User entity
-        String finalEmail = email;
-        User appUser = userRepository.findByUsername(username)
-                .map(u -> {
-                    u.setEmail(finalEmail);
-                    return userRepository.save(u);
-                })
-                .orElseGet(() -> {
-                    User u = new User();
-                    u.setUsername(username);
-                    u.setEmail(finalEmail);
-                    u.setEnabled(true);
-                    u.getRoles().add(defaultRole);
-                    return userRepository.save(u);
-                });
+        // Create new user
+        User appUser = new User();
+        appUser.setUsername(username);
+        appUser.setEmail(email);
+        appUser.setEnabled(true);
+        appUser.getRoles().add(defaultRole);
+        userRepository.save(appUser);
+        log.info("New user created: {}", username);
 
-        // 6. Build authorities for Spring Security
+        // Build authorities for Spring Security
         Set<GrantedAuthority> authorities = appUser.getRoles().stream()
                 .map(r -> new SimpleGrantedAuthority(r.getName()))
                 .collect(Collectors.toSet());
 
-        // 7. Return a DefaultOAuth2User with attributes from Bitbucket
         return new DefaultOAuth2User(authorities, oauthUser.getAttributes(), "username");
     }
 }
