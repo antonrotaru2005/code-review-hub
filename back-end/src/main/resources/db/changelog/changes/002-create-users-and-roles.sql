@@ -9,6 +9,7 @@ CREATE TABLE roles (
 CREATE TABLE users (
     id BIGSERIAL PRIMARY KEY,
     username VARCHAR(100) NOT NULL UNIQUE,
+    bitbucket_uuid VARCHAR(100) NOT NULL UNIQUE,
     email VARCHAR(200),
     enabled BOOLEAN NOT NULL DEFAULT TRUE
 );

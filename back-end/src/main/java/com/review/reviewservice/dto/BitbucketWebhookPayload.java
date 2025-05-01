@@ -13,7 +13,7 @@ public class BitbucketWebhookPayload {
 
     @Data
     public static class PullRequest {
-        private int id;
+        private long id;
         private String title;
         private Author author;
         private Links links;
@@ -33,6 +33,7 @@ public class BitbucketWebhookPayload {
     public static class Author {
         @JsonProperty("display_name")
         private String displayName;
+        private String uuid;
     }
 
     @Data

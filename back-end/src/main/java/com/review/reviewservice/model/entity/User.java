@@ -16,7 +16,13 @@ public class User {
 
     @Column(nullable = false, unique = true)
     private String username;
+
+    @Column(name = "bitbucket_uuid", unique = true, nullable = false)
+    private String bitbucketUuid;
+
+    @Column(unique = true)
     private String email;
+
     private boolean enabled;
 
     @ManyToMany

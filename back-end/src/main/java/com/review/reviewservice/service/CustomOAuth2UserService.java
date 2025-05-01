@@ -96,6 +96,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         // Fetch email folosind serviciul dedicat
         String token = userRequest.getAccessToken().getTokenValue();
         String email = emailFetcherService.fetchPrimaryEmail(token);
+        String uuid = oauthUser.getAttribute("uuid");
 
         // Asigură rolul "ROLE_USER"
         Role defaultRole = roleRepository.findByName("ROLE_USER")
@@ -104,6 +105,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         // Creare și salvare
         User appUser = new User();
         appUser.setUsername(username);
+        appUser.setBitbucketUuid(uuid);
         appUser.setEmail(email);
         appUser.setEnabled(true);
         appUser.getRoles().add(defaultRole);
