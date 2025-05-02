@@ -1,23 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import { Navbar, Nav, Container, Button, Card, Alert } from 'react-bootstrap';
-import { Link, useLocation } from 'react-router-dom';
-import config from '../config';
+import { Navbar, Nav, Container, Button, Card } from 'react-bootstrap';
+import { Link } from 'react-router-dom';
+
+// Note: Ensure you have installed the required dependencies:
+// Run `npm install react-bootstrap bootstrap react-router-dom` in your project directory.
 
 function LoginPage() {
-    const [userNotFound, setUserNotFound] = useState(false);
-    const location = useLocation();
-
-    useEffect(() => {
-        const query = new URLSearchParams(location.search);
-        if (query.get('error') === 'user_not_found') {
-            setUserNotFound(true);
-        }
-    }, [location]);
-
     const handleLogin = () => {
-        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket-login`;
-    }
+        window.location.href = "http://localhost:8080/oauth2/authorization/bitbucket-login";
+    };
 
     return (
         <div className="d-flex flex-column min-vh-100">
@@ -44,15 +36,6 @@ function LoginPage() {
                                 <Card.Body className="p-5">
                                     <h2 className="text-center mb-4">Login to Code Review Hub</h2>
                                     <p className="text-center text-muted mb-4">Sign in with your Bitbucket account to continue</p>
-
-                                    {/* Afișăm eroarea dacă userul nu există */}
-                                    {userNotFound && (
-                                        <Alert variant="danger" className="text-center">
-                                            This user does not exist.{' '}
-                                            <Link to="/signup" className="alert-link">Sign up instead</Link>.
-                                        </Alert>
-                                    )}
-
                                     <div className="d-grid gap-2">
                                         <Button
                                             variant="primary"

@@ -1,52 +1,56 @@
 // src/pages/UserPage.jsx
 import React, { useEffect, useState } from 'react'
-import { Container, Spinner, Alert } from 'react-bootstrap'
-import { getUserInfo, getUserPRs } from '../api/user'
-import UserProfile from '../components/UserProfile'
-import PRList from '../components/PRList'
+import { getUserInfo, getUserFeedbacks } from '../api/user'
 
 export default function UserPage() {
   const [user, setUser] = useState(null)
-  const [prs, setPrs] = useState([])
+  const [feedbacks, setFeedbacks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
   useEffect(() => {
-    async function load() {
+    async function fetchData() {
       try {
-        const [u, p] = await Promise.all([getUserInfo(), getUserPRs()])
-        setUser(u)
-        setPrs(p)
-      } catch (e) {
-        setError(e.message)
+        // 1) Ia profile-ul
+        const userData = await getUserInfo()
+        setUser(userData)
+
+        // 2) Ia feedback-urile pentru acest user
+        //    presupozi că userData conține câmpul `username`
+        const fbs = await getUserFeedbacks(userData.username)
+        setFeedbacks(fbs)
+      } catch (err) {
+        console.error(err)
+        setError(err.message)
       } finally {
         setLoading(false)
       }
     }
-    load()
+    fetchData()
   }, [])
 
-  if (loading) {
-    return (
-      <Container className="text-center mt-5">
-        <Spinner animation="border" />
-      </Container>
-    )
-  }
-
-  if (error) {
-    return (
-      <Container className="mt-4">
-        <Alert variant="danger">Eroare: {error}</Alert>
-      </Container>
-    )
-  }
+  if (loading) return <p>Se încarcă...</p>
+  if (error)   return <p className="text-danger">Eroare: {error}</p>
 
   return (
-    <Container className="my-4">
-      <UserProfile user={user} />
-      <h3 className="mb-3">Pull Requests trimise</h3>
-      <PRList prs={prs} />
-    </Container>
+    <div className="user-page container py-4">
+      <h2>Salut, {user.name}!</h2>
+      <p>Email: {user.email}</p>
+
+      <hr />
+
+      <h3>Iată feedback-urile tale</h3>
+      {feedbacks.length === 0 ? (
+        <p>Nu ai trimis încă niciun feedback.</p>
+      ) : (
+        <ul className="list-group">
+          {feedbacks.map(fb => (
+            <li key={fb.id} className="list-group-item">
+              <strong>PR #{fb.prId}:</strong> {fb.comment}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   )
 }

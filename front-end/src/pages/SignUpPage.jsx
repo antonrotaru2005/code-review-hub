@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 import { Navbar, Nav, Container, Button, Card, Alert } from 'react-bootstrap';
 import { Link, useLocation } from 'react-router-dom';
-import config from '../config';
+
 
 // Note: Ensure you have installed the required dependencies:
 // Run `npm install react-bootstrap bootstrap react-router-dom` in your project directory.
@@ -21,7 +21,7 @@ function SignUpPage() {
 
     const handleSignUp = () => {
         // Redirect to Bitbucket OAuth endpoint with action=signup
-        window.location.href = `${config.BACKEND_URL}/oauth2/authorization/bitbucket?action=signup`;
+        window.location.href = `http://localhost:8080/oauth2/authorization/bitbucket-signup`;
     };
 
     return (
