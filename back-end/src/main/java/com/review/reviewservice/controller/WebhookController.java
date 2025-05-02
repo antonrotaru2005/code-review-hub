@@ -42,13 +42,14 @@ public class WebhookController {
 
         if (feedback != null) {
             Long prId = payload.getPullRequest().getId();
+            String repoFullName = payload.getRepository().getFullName();
             String uuid = payload.getPullRequest().getAuthor().getUuid();
 
             // Postează pe PR
             bitbucketService.postCommentToPullRequest(payload, feedback);
 
             // Salvez în BD găsind mai întâi user-ul după UUID
-            feedbackService.saveByUuid(prId, uuid, feedback);
+            feedbackService.save(prId, uuid, feedback, repoFullName);
         }
         return ResponseEntity.ok("Webhook processed and feedback saved.");
     }

@@ -22,17 +22,17 @@ public class FeedbackService {
         this.userRepository = userRepository;
     }
 
-    public FeedbackDto saveByUuid(Long prId, String bitbucketUuid, String comment) {
-        User user = userRepository.findByBitbucketUuid(bitbucketUuid)
-                .orElseThrow(() -> new IllegalArgumentException("Unknown user UUID: " + bitbucketUuid));
+    public FeedbackDto save(Long prId, String username, String comment, String repoFullName) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
 
         Feedback f = new Feedback();
         f.setPrId(prId);
         f.setComment(comment);
+        f.setRepoFullName(repoFullName);
         f.setUser(user);
         return toDto(feedbackRepository.save(f));
     }
-
 
 
     public List<FeedbackDto> getByPr(Long prId) {
@@ -50,6 +50,7 @@ public class FeedbackService {
     private FeedbackDto toDto(Feedback f) {
         return new FeedbackDto(
                 f.getId(),
+                f.getRepoFullName(),
                 f.getPrId(),
                 f.getComment(),
                 f.getCreatedAt(),

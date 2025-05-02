@@ -1,56 +1,60 @@
-// src/pages/UserPage.jsx
-import React, { useEffect, useState } from 'react'
-import { getUserInfo, getUserFeedbacks } from '../api/user'
+import React, { useEffect, useState } from 'react';
+import { getUserInfo, getUserFeedbacks } from '../api/user';
 
 export default function UserPage() {
-  const [user, setUser] = useState(null)
-  const [feedbacks, setFeedbacks] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [user, setUser] = useState(null);
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // grupează după repoFullName
+  function groupByRepo(feedbacks) {
+    return feedbacks.reduce((acc, fb) => {
+      (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
+      return acc;
+    }, {});
+  }
 
   useEffect(() => {
-    async function fetchData() {
+    async function load() {
       try {
-        // 1) Ia profile-ul
-        const userData = await getUserInfo()
-        setUser(userData)
-
-        // 2) Ia feedback-urile pentru acest user
-        //    presupozi că userData conține câmpul `username`
-        const fbs = await getUserFeedbacks(userData.username)
-        setFeedbacks(fbs)
-      } catch (err) {
-        console.error(err)
-        setError(err.message)
+        const u = await getUserInfo();
+        setUser(u);
+        const fbs = await getUserFeedbacks(u.username);
+        setFeedbacks(fbs);
+      } catch (e) {
+        setError(e.message);
       } finally {
-        setLoading(false)
+        setLoading(false);
       }
     }
-    fetchData()
-  }, [])
+    load();
+  }, []);
 
-  if (loading) return <p>Se încarcă...</p>
-  if (error)   return <p className="text-danger">Eroare: {error}</p>
+  if (loading) return <p>Se încarcă...</p>;
+  if (error)   return <p className="text-danger">Eroare: {error}</p>;
+
+  const grouped = groupByRepo(feedbacks);
 
   return (
-    <div className="user-page container py-4">
+    <div className="container py-4">
       <h2>Salut, {user.name}!</h2>
       <p>Email: {user.email}</p>
+      <hr/>
 
-      <hr />
-
-      <h3>Iată feedback-urile tale</h3>
-      {feedbacks.length === 0 ? (
-        <p>Nu ai trimis încă niciun feedback.</p>
-      ) : (
-        <ul className="list-group">
-          {feedbacks.map(fb => (
-            <li key={fb.id} className="list-group-item">
-              <strong>PR #{fb.prId}:</strong> {fb.comment}
-            </li>
+      <h3>Feedback-urile tale</h3>
+      {Object.entries(grouped).map(([repo, items]) => (
+        <div key={repo} className="mb-4">
+          <h4>{repo}</h4>
+          {items.map(fb => (
+            <div key={fb.id} className="card mb-2">
+              <div className="card-body">
+                <strong>PR #{fb.prId}:</strong> {fb.comment}
+              </div>
+            </div>
           ))}
-        </ul>
-      )}
+        </div>
+      ))}
     </div>
-  )
+  );
 }

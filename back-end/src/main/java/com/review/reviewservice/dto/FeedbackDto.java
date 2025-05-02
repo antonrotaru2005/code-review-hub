@@ -4,6 +4,7 @@ import java.time.LocalDateTime;
 
 public record FeedbackDto(
         Long id,
+        String repoFullName,
         Long prId,
         String comment,
         LocalDateTime createdAt,

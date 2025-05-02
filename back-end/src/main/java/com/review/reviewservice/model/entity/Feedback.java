@@ -12,6 +12,9 @@ public class Feedback {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @Column(name = "repo_full_name", nullable = false)
+    private String repoFullName;    // nou
+
     @Column(name = "pr_id", nullable = false)
     private long prId;
 

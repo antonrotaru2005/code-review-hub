@@ -25,8 +25,9 @@ public class FeedbackController {
     @Operation(summary = "Create feedback", description = "Save a new feedback entry for a PR")
     @PostMapping
     public ResponseEntity<FeedbackDto> create(@RequestBody FeedbackDto request) {
-        FeedbackDto saved = feedbackService.saveByUuid(
+        FeedbackDto saved = feedbackService.save(
                 request.prId(),
+                request.repoFullName(),
                 request.username(),
                 request.comment()
         );
