@@ -37,10 +37,19 @@ export default function UserPage() {
   }, []);
 
   // Logout handler
-  const handleLogout = () => {
-    // TODO: call logout API if available
-    navigate('/login');
-  };
+  const handleLogout = async () => {
+    try {
+        await fetch('/logout', {
+            method: 'POST',
+            credentials: 'include'
+          });
+    } catch (err) {
+        console.error('Logout failed', err);
+    } finally {
+        setUser(null);
+        navigate('/');
+    }
+};
 
   // Loading state
   if (loading) {
