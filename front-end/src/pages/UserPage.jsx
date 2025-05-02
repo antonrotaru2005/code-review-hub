@@ -11,7 +11,7 @@ export default function UserPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  // Grupare feedback-uri după repoFullName
+  // Group feedbacks by repository name
   function groupByRepo(feedbacks) {
     return feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
@@ -19,7 +19,7 @@ export default function UserPage() {
     }, {});
   }
 
-  // Încărcare date utilizator și feedback-uri
+  // Load user info and feedbacks
   useEffect(() => {
     async function load() {
       try {
@@ -36,30 +36,29 @@ export default function UserPage() {
     load();
   }, []);
 
-  // Funcție pentru logout
+  // Logout handler
   const handleLogout = () => {
-    // Aici ar trebui să apelezi API-ul de logout, dacă există
-    // De exemplu: await logout();
+    // TODO: call logout API if available
     navigate('/login');
   };
 
-  // Stare de încărcare
+  // Loading state
   if (loading) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
         <Spinner animation="border" variant="primary" />
-        <span className="ms-2">Se încarcă...</span>
+        <span className="ms-2">Loading...</span>
       </div>
     );
   }
 
-  // Stare de eroare
+  // Error state
   if (error) {
     return (
       <div className="d-flex justify-content-center align-items-center min-vh-100">
         <Alert variant="danger" className="w-50">
-          <Alert.Heading>Eroare</Alert.Heading>
-          <p>{error}</p>
+          <Alert.Heading>Error</Alert.Heading>
+          <p>Please <Link to="/login">Log In</Link> or <Link to="/signup">Sign Up</Link></p>
         </Alert>
       </div>
     );
@@ -87,7 +86,7 @@ export default function UserPage() {
       {/* Main Content */}
       <main className="flex-grow-1 py-5">
         <Container>
-          {/* Informații utilizator */}
+          {/* User Info */}
           <Card className="shadow-sm mb-4">
             <Card.Body className="d-flex align-items-center">
               {user.avatar ? (
@@ -106,17 +105,17 @@ export default function UserPage() {
                 </div>
               )}
               <div>
-                <h2 className="mb-1">Salut, {user.name}!</h2>
+                <h2 className="mb-1">Hello, {user.name}!</h2>
                 <p className="text-muted mb-0">Email: {user.email}</p>
               </div>
             </Card.Body>
           </Card>
 
-          {/* Feedback-uri */}
-          <h3 className="mb-4">Feedback-urile tale</h3>
+          {/* User Feedbacks */}
+          <h3 className="mb-4">Your Feedback</h3>
           {Object.entries(grouped).length === 0 ? (
             <Alert variant="info">
-              Nu ai lăsat încă niciun feedback.
+              You haven't left any feedback yet.
             </Alert>
           ) : (
             Object.entries(grouped).map(([repo, items]) => (
