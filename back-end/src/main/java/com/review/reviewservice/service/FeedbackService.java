@@ -22,9 +22,9 @@ public class FeedbackService {
         this.userRepository = userRepository;
     }
 
-    public FeedbackDto save(Long prId, String username, String comment, String repoFullName) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
+    public FeedbackDto save(Long prId, String uuid, String comment, String repoFullName) {
+        User user = userRepository.findByBitbucketUuid(uuid)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + uuid));
 
         Feedback f = new Feedback();
         f.setPrId(prId);
