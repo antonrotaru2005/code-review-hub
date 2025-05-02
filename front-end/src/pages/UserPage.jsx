@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { getUserInfo, getUserFeedbacks } from '../api/user';
+import { Navbar, Nav, Container, Card, Spinner, Alert } from 'react-bootstrap';
+import { Link, useNavigate } from 'react-router-dom';
+import 'bootstrap/dist/css/bootstrap.min.css';
 
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  // grupează după repoFullName
+  // Grupare feedback-uri după repoFullName
   function groupByRepo(feedbacks) {
     return feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
@@ -15,6 +19,7 @@ export default function UserPage() {
     }, {});
   }
 
+  // Încărcare date utilizator și feedback-uri
   useEffect(() => {
     async function load() {
       try {
@@ -31,30 +36,142 @@ export default function UserPage() {
     load();
   }, []);
 
-  if (loading) return <p>Se încarcă...</p>;
-  if (error)   return <p className="text-danger">Eroare: {error}</p>;
+  // Funcție pentru logout
+  const handleLogout = () => {
+    // Aici ar trebui să apelezi API-ul de logout, dacă există
+    // De exemplu: await logout();
+    navigate('/login');
+  };
+
+  // Stare de încărcare
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <Spinner animation="border" variant="primary" />
+        <span className="ms-2">Se încarcă...</span>
+      </div>
+    );
+  }
+
+  // Stare de eroare
+  if (error) {
+    return (
+      <div className="d-flex justify-content-center align-items-center min-vh-100">
+        <Alert variant="danger" className="w-50">
+          <Alert.Heading>Eroare</Alert.Heading>
+          <p>{error}</p>
+        </Alert>
+      </div>
+    );
+  }
 
   const grouped = groupByRepo(feedbacks);
 
   return (
-    <div className="container py-4">
-      <h2>Salut, {user.name}!</h2>
-      <p>Email: {user.email}</p>
-      <hr/>
+    <div className="d-flex flex-column min-vh-100">
+      {/* Navbar */}
+      <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
+        <Container>
+          <Navbar.Brand as={Link} to="/">Code Review Hub</Navbar.Brand>
+          <Navbar.Toggle aria-controls="basic-navbar-nav" />
+          <Navbar.Collapse id="basic-navbar-nav">
+            <Nav className="ms-auto">
+              <Nav.Link as={Link} to="/">Home</Nav.Link>
+              <Nav.Link as={Link} to="/user" active>User</Nav.Link>
+              <Nav.Link onClick={handleLogout}>Logout</Nav.Link>
+            </Nav>
+          </Navbar.Collapse>
+        </Container>
+      </Navbar>
 
-      <h3>Feedback-urile tale</h3>
-      {Object.entries(grouped).map(([repo, items]) => (
-        <div key={repo} className="mb-4">
-          <h4>{repo}</h4>
-          {items.map(fb => (
-            <div key={fb.id} className="card mb-2">
-              <div className="card-body">
-                <strong>PR #{fb.prId}:</strong> {fb.comment}
+      {/* Main Content */}
+      <main className="flex-grow-1 py-5">
+        <Container>
+          {/* Informații utilizator */}
+          <Card className="shadow-sm mb-4">
+            <Card.Body className="d-flex align-items-center">
+              {user.avatar ? (
+                <img
+                  src={user.avatar}
+                  alt="Avatar"
+                  className="rounded-circle me-3"
+                  style={{ width: '64px', height: '64px', objectFit: 'cover' }}
+                />
+              ) : (
+                <div
+                  className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center me-3"
+                  style={{ width: '64px', height: '64px', fontSize: '24px' }}
+                >
+                  {user.name ? user.name[0].toUpperCase() : 'U'}
+                </div>
+              )}
+              <div>
+                <h2 className="mb-1">Salut, {user.name}!</h2>
+                <p className="text-muted mb-0">Email: {user.email}</p>
               </div>
+            </Card.Body>
+          </Card>
+
+          {/* Feedback-uri */}
+          <h3 className="mb-4">Feedback-urile tale</h3>
+          {Object.entries(grouped).length === 0 ? (
+            <Alert variant="info">
+              Nu ai lăsat încă niciun feedback.
+            </Alert>
+          ) : (
+            Object.entries(grouped).map(([repo, items]) => (
+              <div key={repo} className="mb-4">
+                <h4 className="mb-3">{repo}</h4>
+                <div className="row g-3">
+                  {items.map(fb => (
+                    <div key={fb.id} className="col-12">
+                      <Card className="shadow-sm">
+                        <Card.Body>
+                          <Card.Title className="d-flex align-items-center">
+                            <span className="text-primary me-2">PR #{fb.prId}</span>
+                          </Card.Title>
+                          <Card.Text>{fb.comment}</Card.Text>
+                        </Card.Body>
+                      </Card>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+        </Container>
+      </main>
+
+      {/* Footer */}
+      <footer className="bg-dark text-white py-4">
+        <Container>
+          <div className="row">
+            <div className="col-md-4">
+              <h5>Code Review Hub</h5>
+              <p>Empowering developers through collaboration and code review.</p>
             </div>
-          ))}
-        </div>
-      ))}
+            <div className="col-md-4">
+              <h5>Quick Links</h5>
+              <ul className="list-unstyled">
+                <li><Link to="/about" className="text-white text-decoration-none">About</Link></li>
+                <li><Link to="/contact" className="text-white text-decoration-none">Contact</Link></li>
+                <li><Link to="/faq" className="text-white text-decoration-none">FAQ</Link></li>
+              </ul>
+            </div>
+            <div className="col-md-4">
+              <h5>Connect</h5>
+              <ul className="list-unstyled">
+                <li><a href="#" className="text-white text-decoration-none">Twitter</a></li>
+                <li><a href="#" className="text-white text-decoration-none">GitHub</a></li>
+                <li><a href="#" className="text-white text-decoration-none">LinkedIn</a></li>
+              </ul>
+            </div>
+          </div>
+          <div className="text-center mt-3">
+            <p className="mb-0">© {new Date().getFullYear()} Code Review Hub. All rights reserved.</p>
+          </div>
+        </Container>
+      </footer>
     </div>
   );
 }
