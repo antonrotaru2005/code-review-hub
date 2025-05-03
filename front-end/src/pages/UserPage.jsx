@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { getUserInfo, getUserFeedbacks } from '../api/user';
 import { Navbar, Nav, Container, Card, Spinner, Alert } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
@@ -39,17 +41,17 @@ export default function UserPage() {
   // Logout handler
   const handleLogout = async () => {
     try {
-        await fetch('/logout', {
-            method: 'POST',
-            credentials: 'include'
-          });
+      await fetch('/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
     } catch (err) {
-        console.error('Logout failed', err);
+      console.error('Logout failed', err);
     } finally {
-        setUser(null);
-        navigate('/');
+      setUser(null);
+      navigate('/');
     }
-};
+  };
 
   // Loading state
   if (loading) {
@@ -138,7 +140,10 @@ export default function UserPage() {
                           <Card.Title className="d-flex align-items-center">
                             <span className="text-primary me-2">PR #{fb.prId}</span>
                           </Card.Title>
-                          <Card.Text>{fb.comment}</Card.Text>
+                          {/* Render Markdown-formatted feedback */}
+                          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                            {fb.comment}
+                          </ReactMarkdown>
                         </Card.Body>
                       </Card>
                     </div>
