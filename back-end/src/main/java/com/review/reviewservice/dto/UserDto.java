@@ -6,5 +6,6 @@ package com.review.reviewservice.dto;
 public record UserDto(
         String username,
         String name,
-        String email
+        String email,
+        String avatar
 ) {}

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * Controller pentru expunerea informațiilor despre utilizatorul curent.
  */
@@ -37,7 +39,15 @@ public class UserController {
         User appUser = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("User not found: " + username));
         String email = appUser.getEmail();
+        String avatarUrl = null;
+        Object links = oauthUser.getAttribute("links");
+        if (links instanceof Map<?, ?> map) {
+            Object avatar = map.get("avatar");
+            if (avatar instanceof Map<?, ?> av) {
+                avatarUrl = (String) av.get("href");
+            }
+        }
 
-        return new UserDto(username, displayName, email);
+        return new UserDto(username, displayName, email, avatarUrl);
     }
 }

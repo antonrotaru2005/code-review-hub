@@ -58,7 +58,10 @@ public class SecurityConfig {
 
                 // Logout redirection
                 .logout(logout -> logout
+                        .logoutUrl("/logout")
                         .logoutSuccessUrl(frontendUrl)
+                        .invalidateHttpSession(true)
+                        .deleteCookies("JSESSIONID")
                 );
 
         return http.build();
