@@ -14,3 +14,9 @@ databaseChangeLog:
   - include:
       file: changes/005-add-repo-full-name-to-feedback.sql
       relativeToChangelogFile: true
+  - include:
+      file: changes/006-create-table-ai-models.sql
+      relativeToChangelogFile: true
+  - include:
+      file: changes/007-update-users-table.sql
+      relativeToChangelogFile: true
