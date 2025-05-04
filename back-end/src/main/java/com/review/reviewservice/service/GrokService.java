@@ -4,7 +4,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.review.reviewservice.config.ChatGptProperties;
+import com.review.reviewservice.config.GrokProperties;
 import com.review.reviewservice.dto.FileData;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,13 +20,13 @@ import java.util.List;
 
 @Slf4j
 @Service
-public class ChatGPTService {
+public class GrokService {
     private final RestTemplate restTemplate;
-    private final ChatGptProperties properties;
+    private final GrokProperties properties;
     private final ObjectMapper objectMapper;
 
     @Autowired
-    public ChatGPTService(RestTemplate restTemplate, ChatGptProperties properties, ObjectMapper objectMapper) {
+    public GrokService(RestTemplate restTemplate, GrokProperties properties, ObjectMapper objectMapper) {
         this.restTemplate = restTemplate;
         this.properties = properties;
         this.objectMapper = objectMapper;
@@ -35,11 +35,11 @@ public class ChatGPTService {
     public String reviewFiles(List<FileData> files) {
         try {
             if (properties.getApiUrl() == null || properties.getApiUrl().trim().isEmpty()) {
-                throw new IllegalArgumentException("ChatGPT API URL is not set in configuration");
+                throw new IllegalArgumentException("Grok API URL is not set in configuration");
             }
             URI apiUri = URI.create(properties.getApiUrl());
             if (!apiUri.isAbsolute()) {
-                throw new IllegalArgumentException("ChatGPT API URL is not absolute: " + properties.getApiUrl());
+                throw new IllegalArgumentException("Grok API URL is not absolute: " + properties.getApiUrl());
             }
 
             HttpHeaders headers = new HttpHeaders();
@@ -65,21 +65,21 @@ public class ChatGPTService {
             requestBody.set("messages", messages);
 
             String requestBodyString = objectMapper.writeValueAsString(requestBody);
-            log.info("ChatGPT request payload: {}", requestBodyString);
+            log.info("Grok request payload: {}", requestBodyString);
 
             HttpEntity<String> entity = new HttpEntity<>(requestBodyString, headers);
 
             String response = restTemplate.exchange(apiUri, HttpMethod.POST, entity, String.class).getBody();
 
             JsonNode responseNode = objectMapper.readTree(response);
-            if (!responseNode.has("choices") || responseNode.get("choices").size() == 0) {
-                throw new IllegalStateException("No choices found in ChatGPT response: " + response);
+            if (!responseNode.has("choices") || responseNode.get("choices").isEmpty()) {
+                throw new IllegalStateException("No choices found in Grok response: " + response);
             }
             return responseNode.get("choices").get(0).get("message").get("content").asText();
 
         } catch (Exception e) {
-            log.error("Error during ChatGPT review: {}", e.getMessage(), e);
-            return "Error during ChatGPT review: " + e.getMessage();
+            log.error("Error during Grok review: {}", e.getMessage(), e);
+            return "Error during Grok review: " + e.getMessage();
         }
     }
 }
