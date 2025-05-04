@@ -32,7 +32,7 @@ public class GrokService {
         this.objectMapper = objectMapper;
     }
 
-    public String reviewFiles(List<FileData> files) {
+    public String reviewFiles(List<FileData> files, String model) {
         try {
             if (properties.getApiUrl() == null || properties.getApiUrl().trim().isEmpty()) {
                 throw new IllegalArgumentException("Grok API URL is not set in configuration");
@@ -47,7 +47,7 @@ public class GrokService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             ObjectNode requestBody = objectMapper.createObjectNode();
-            requestBody.put("model", properties.getModel());
+            requestBody.put("model", model);
 
             ArrayNode messages = objectMapper.createArrayNode();
             ObjectNode systemMessage = objectMapper.createObjectNode();
