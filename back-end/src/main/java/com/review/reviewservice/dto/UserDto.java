@@ -7,5 +7,6 @@ public record UserDto(
         String username,
         String name,
         String email,
-        String avatar
+        String avatar,
+        String aiModel
 ) {}
