@@ -11,6 +11,8 @@ public class AiProperties {
 
     private Provider chatgpt = new Provider();
     private Provider grok = new Provider();
+    private Provider copilot = new Provider();
+    private Provider gemini = new Provider();
 
     @Data
     public static class Provider {
