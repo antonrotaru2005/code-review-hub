@@ -2,15 +2,18 @@ package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.AiModel;
+import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.AiModelRepository;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +27,7 @@ public class UserController {
     private final UserRepository userRepository;
     private final AiModelRepository aiModelRepository;
 
+    @Autowired
     public UserController(UserRepository userRepository, AiModelRepository aiModelRepository) {
         this.userRepository = userRepository;
         this.aiModelRepository = aiModelRepository;
@@ -56,9 +60,13 @@ public class UserController {
                 avatarUrl = (String) av.get("href");
             }
         }
-
         String ai_model = appUser.getAiModel().getAi() + ": " + appUser.getAiModel().getModel();
-        return new UserDto(username, displayName, email, avatarUrl, ai_model);
+
+        List<String> roles = appUser.getRoles().stream()
+                .map(Role::getName)
+                .toList();
+
+        return new UserDto(username, displayName, email, avatarUrl, ai_model, roles);
     }
 
     /**
