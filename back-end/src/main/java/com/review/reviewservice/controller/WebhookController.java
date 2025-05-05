@@ -37,7 +37,6 @@ public class WebhookController {
         // 1. Fetch modified files from Bitbucket
         List<FileData> fetchedFiles = bitbucketService.getModifiedFiles(payload);
 
-        // 2. Generate feedback in ChatGPT
         String feedback = chatGPTService.reviewFiles(fetchedFiles);
 
         if (feedback != null) {
