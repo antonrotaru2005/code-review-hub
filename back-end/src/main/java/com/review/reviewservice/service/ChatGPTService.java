@@ -32,7 +32,7 @@ public class ChatGPTService {
         this.objectMapper = objectMapper;
     }
 
-    public String reviewFiles(List<FileData> files) {
+    public String reviewFiles(List<FileData> files, String model) {
         try {
             if (properties.getApiUrl() == null || properties.getApiUrl().trim().isEmpty()) {
                 throw new IllegalArgumentException("ChatGPT API URL is not set in configuration");
@@ -47,7 +47,7 @@ public class ChatGPTService {
             headers.setContentType(MediaType.APPLICATION_JSON);
 
             ObjectNode requestBody = objectMapper.createObjectNode();
-            requestBody.put("model", properties.getModel());
+            requestBody.put("model", model);
 
             ArrayNode messages = objectMapper.createArrayNode();
             ObjectNode systemMessage = objectMapper.createObjectNode();
@@ -72,7 +72,7 @@ public class ChatGPTService {
             String response = restTemplate.exchange(apiUri, HttpMethod.POST, entity, String.class).getBody();
 
             JsonNode responseNode = objectMapper.readTree(response);
-            if (!responseNode.has("choices") || responseNode.get("choices").size() == 0) {
+            if (!responseNode.has("choices") || responseNode.get("choices").isEmpty()) {
                 throw new IllegalStateException("No choices found in ChatGPT response: " + response);
             }
             return responseNode.get("choices").get(0).get("message").get("content").asText();

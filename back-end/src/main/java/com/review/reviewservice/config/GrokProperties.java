@@ -10,5 +10,4 @@ import org.springframework.context.annotation.Configuration;
 public class GrokProperties {
     private String apiUrl;
     private String apiKey;
-    private String model;
 }
