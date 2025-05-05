@@ -48,7 +48,7 @@ public class WebhookController {
 
         // 2. Determine the preferred AI for the user
         String uuid = payload.getPullRequest().getAuthor().getUuid();
-        User user = userRepository.findByUsername(uuid)
+        User user = userRepository.findByBitbucketUuid(uuid)
                 .orElseThrow(() -> new IllegalStateException("User not found: " + uuid));
 
         String ai = user.getAiModel() != null ? user.getAiModel().getAi() : "chatgpt";
