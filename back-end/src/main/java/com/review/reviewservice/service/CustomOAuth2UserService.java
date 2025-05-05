@@ -2,8 +2,10 @@ package com.review.reviewservice.service;
 
 import com.review.reviewservice.exceptions.UserAlreadyExistsException;
 import com.review.reviewservice.exceptions.UserNotFoundException;
+import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
+import com.review.reviewservice.model.repository.AiModelRepository;
 import com.review.reviewservice.model.repository.RoleRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import lombok.extern.slf4j.Slf4j;
@@ -34,15 +36,17 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final EmailFetcherService emailFetcherService;
+    private final AiModelRepository aiModelRepository;
 
     @Autowired
     public CustomOAuth2UserService(
             UserRepository userRepository,
             RoleRepository roleRepository,
-            EmailFetcherService emailFetcherService) {
+            EmailFetcherService emailFetcherService, AiModelRepository aiModelRepository) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.emailFetcherService = emailFetcherService;
+        this.aiModelRepository = aiModelRepository;
     }
 
     @Override
@@ -98,9 +102,13 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String email = emailFetcherService.fetchPrimaryEmail(token);
         String uuid = oauthUser.getAttribute("uuid");
 
-        // Asigură rolul "ROLE_USER"
+        // Assume the role "ROLE_USER"
         Role defaultRole = roleRepository.findByName("ROLE_USER")
                 .orElseThrow(() -> new IllegalStateException("ROLE_USER not found"));
+
+        // Fetch AiModel with id = 1
+        AiModel defaultAiModel = aiModelRepository.findById(1L)
+                .orElseThrow(() -> new IllegalStateException("AiModel with id 1 not found"));
 
         // Creare și salvare
         User appUser = new User();
@@ -109,6 +117,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         appUser.setEmail(email);
         appUser.setEnabled(true);
         appUser.getRoles().add(defaultRole);
+        appUser.setAiModel(defaultAiModel);
         userRepository.save(appUser);
         log.info("New user created: {}", username);
 
