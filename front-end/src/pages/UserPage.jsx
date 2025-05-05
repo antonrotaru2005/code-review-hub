@@ -20,10 +20,22 @@ export default function UserPage() {
   const navigate = useNavigate();
 
   const aiModels = [
-    { id: 1, ai: 'chatgpt', model: 'gpt-4o-mini' },
-    { id: 2, ai: 'chatgpt', model: 'gpt-3.5-turbo' },
-    { id: 3, ai: 'grok',    model: 'grok-3-mini-beta' }
+    { id: 1, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4O' },
+    { id: 2, ai: 'ChatGPT', model: 'gpt-4-turbo',      label: 'GPT-4 Turbo' },
+    { id: 3, ai: 'ChatGPT', model: 'o3',               label: 'O3' },
+    { id: 4, ai: 'ChatGPT', model: 'o4-mini',          label: 'O4 Mini' },
+  
+    { id: 5, ai: 'Grok',    model: 'grok',             label: 'Grok' },
+    { id: 6, ai: 'Grok',    model: 'grok-3',           label: 'Grok 3' },
+  
+    { id: 7, ai: 'Copilot', model: 'copilot-codex',    label: 'Copilot Codex' },
+    { id: 8, ai: 'Copilot', model: 'copilot-gpt-4',    label: 'Copilot GPT-4' },
+  
+    { id: 9, ai: 'Gemini',  model: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro' },
+    { id: 10,ai: 'Gemini',  model: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { id: 11,ai: 'Gemini',  model: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro' },
   ];
+  
 
   function groupByRepo(feedbacks) {
     return feedbacks.reduce((acc, fb) => {
@@ -64,6 +76,14 @@ export default function UserPage() {
       setUser(null);
       navigate('/');
     }
+  };
+
+  const handleToggleTheme = () => {
+    console.log('Toggle theme');
+  };
+
+  const handleSwitchToAdmin = () => {
+    navigate('/admin');
   };
 
   const handleModelChange = async (ai, model) => {
@@ -123,24 +143,31 @@ export default function UserPage() {
             </Navbar.Brand>
             <Navbar.Toggle aria-controls="basic-navbar-nav" />
             <Navbar.Collapse id="basic-navbar-nav">
-              <Nav className="ms-auto">
+              <Nav className="ms-auto allign-items-center">
                 <Nav.Link as={Link} to="/">
                   Home
                 </Nav.Link>
-                <Nav.Link onClick={handleLogout}>
-                  Logout
-                </Nav.Link>
-                <Nav.Link
-                  as={Link}
-                  to="/user"
-                  className="avatar-link d-flex align-items-center ms-2"
-                >
-                  <img
-                    src={user.avatar}
-                    alt="User Avatar"
-                    className="navbar-avatar"
-                  />
-                </Nav.Link>
+                <Dropdown align="end">
+                        <Dropdown.Toggle as={Nav.Link} className="avatar-link p-0">
+                          <img
+                            src={user.avatar}
+                            alt="User Avatar"
+                            className="navbar-avatar"
+                          />
+                        </Dropdown.Toggle>
+                        <Dropdown.Menu>
+                          <Dropdown.Item onClick={handleToggleTheme}>
+                            Theme
+                          </Dropdown.Item>
+                          <Dropdown.Item onClick={handleSwitchToAdmin}>
+                            Switch to Admin
+                          </Dropdown.Item>
+                          <Dropdown.Divider />
+                          <Dropdown.Item onClick={handleLogout}>
+                            Log Out
+                          </Dropdown.Item>
+                        </Dropdown.Menu>
+                      </Dropdown>
               </Nav>
             </Navbar.Collapse>
           </Container>
@@ -191,20 +218,16 @@ export default function UserPage() {
 
                 <Card className="shadow-sm mb-4">
                   <Card.Body>
-                    <h6 className="mb-3">Choose AI Model</h6>
+                    <h6 className="mb-3">Choose Your AI Model</h6>
                     {uniqueAis.map(ai => (
                       <DropdownButton
-                        key={ai}
-                        id={`dropdown-${ai}`}
-                        title={
-                          ai.charAt(0).toUpperCase() + ai.slice(1)
-                        }
-                        variant="outline-secondary"
-                        className="mb-2"
-                        onSelect={model =>
-                          handleModelChange(ai, model)
-                        }
-                      >
+                            key={ai}
+                            id={`dropdown-${ai}`}
+                            title={ai.charAt(0).toUpperCase() + ai.slice(1)}
+                            variant="outline-secondary"
+                            className="mb-2 ai-dropdown"
+                            onSelect={model => handleModelChange(ai, model)}
+                          >
                         {aiModels
                           .filter(m => m.ai === ai)
                           .map(model => (
@@ -215,7 +238,7 @@ export default function UserPage() {
                                 selectedModel === model.model
                               }
                             >
-                              {model.model}
+                              {model.label}
                             </Dropdown.Item>
                           ))}
                       </DropdownButton>
@@ -243,7 +266,7 @@ export default function UserPage() {
                       <span className="text-muted">
                         Current AI model:{' '}
                         <strong>
-                         {user?.aiModel}
+                          {user?.aiModel}
                         </strong>
                       </span>
                     </Card>
@@ -379,7 +402,7 @@ export default function UserPage() {
           </Container>
         </footer>
         <style jsx>{`
-          @import url('https://fonts.googleapis.com/css2?family=Poller+One&display=swap');
+          @import url('https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&display=swap');
 
             .sticky-sidebar {
               position: sticky;
@@ -394,10 +417,11 @@ export default function UserPage() {
             }
 
           .navbar-brand {
-              font-family: "Poller One", serif;
-              font-weight: 700;
-              font-style: normal;
-              font-size: 30px;
+                font-family: "Gabarito", sans-serif;
+                font-optical-sizing: auto;
+                font-weight: 400;
+                font-style: normal;
+                font-size: 27px;
             }
 
           .navbar-avatar {
@@ -407,8 +431,23 @@ export default function UserPage() {
               object-fit: cover;
               transition: opacity 0.2s ease;
             }
+
           .avatar-link:hover .navbar-avatar {
-            opacity: 0.8;
+            opacity: 2;
+          }
+
+          .ai-dropdown{
+            display:block;
+            width:100% !important;
+          }
+
+          .ai-dropdown > .btn{
+              width:100% !important;
+              text-allign:left;
+          }
+
+          .ai-dropdown .dropdown-menu{
+            width:100% !important;
           }
           `}</style>
       </div>
