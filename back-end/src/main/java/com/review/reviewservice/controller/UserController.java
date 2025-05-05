@@ -51,7 +51,8 @@ public class UserController {
             }
         }
 
-        return new UserDto(username, displayName, email, avatarUrl);
+        String ai_model = appUser.getAiModel().getAi() + ": " + appUser.getAiModel().getModel();
+        return new UserDto(username, displayName, email, avatarUrl, ai_model);
     }
 
     /**

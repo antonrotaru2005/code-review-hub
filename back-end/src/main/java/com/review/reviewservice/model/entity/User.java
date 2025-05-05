@@ -34,6 +34,6 @@ public class User {
     private Set<Role> roles = new HashSet<>();
 
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "ai_model_id", insertable = false, updatable = false)
+    @JoinColumn(name = "ai_model_id")
     private AiModel aiModel;
 }
