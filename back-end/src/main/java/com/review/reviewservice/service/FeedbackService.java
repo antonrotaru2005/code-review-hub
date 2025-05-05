@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,6 +21,21 @@ public class FeedbackService {
     public FeedbackService(FeedbackRepository feedbackRepository, UserRepository userRepository) {
         this.feedbackRepository = feedbackRepository;
         this.userRepository = userRepository;
+    }
+
+    public List<FeedbackDto> getAllFeedbacks() {
+        return feedbackRepository.findAll().stream()
+                .map(this::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public void deleteById(Long id) {
+        Optional<Feedback> existing = feedbackRepository.findById(id);
+        if (existing.isPresent()) {
+            feedbackRepository.deleteById(id);
+        } else {
+            throw new IllegalArgumentException("Feedback not found: " + id);
+        }
     }
 
     public FeedbackDto save(Long prId, String uuid, String comment, String repoFullName) {

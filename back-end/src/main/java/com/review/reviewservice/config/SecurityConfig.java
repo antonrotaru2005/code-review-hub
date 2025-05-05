@@ -3,6 +3,7 @@ package com.review.reviewservice.config;
 import com.review.reviewservice.exceptions.UserAlreadyExistsException;
 import com.review.reviewservice.exceptions.UserNotFoundException;
 import com.review.reviewservice.service.CustomOAuth2UserService;
+import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -45,12 +46,16 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
 
+                // Handler of Access Denied
+                .exceptionHandling(ex -> ex
+                        .accessDeniedHandler((req, res, ex2) ->
+                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied"))
+                )
+
                 // OAuth2 Login configuration
                 .oauth2Login(oauth2 -> oauth2
-                        // Custom success and failure handlers
                         .successHandler(authenticationSuccessHandler())
                         .failureHandler(authenticationFailureHandler())
-                        // Use our service to process user info
                         .userInfoEndpoint(userInfo -> userInfo
                                 .userService(customOAuth2UserService)
                         )
@@ -66,6 +71,7 @@ public class SecurityConfig {
 
         return http.build();
     }
+
 
     /**
      * Handles authentication failures by redirecting to front-end with error codes.
