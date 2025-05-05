@@ -46,13 +46,20 @@ bitbucket:
   username: antonrotaru-admin
   password: ATBBqHafzmYDGdDxeYh2wXW3Kc7R6EAF1E96
 
-chatgpt:
-  api-url: https://api.openai.com/v1/chat/completions
-  api-key: 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
-
-grok:
-  api-url: https://api.xai.com/v1/grok/completions
-  api-key: your_grok_api_key
+app:
+  ai:
+    chatgpt:
+      api-url: https://api.openai.com/v1/chat/completions
+      api-key: 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
+    grok:
+      api-url: https://api.xai.com/v1/grok/completions
+      api-key: your_grok_api_key
+    copilot:
+      api-url: https://api.githubcopilot.com/chat/completions
+      api-key: your_copilot_api_key
+    gemini:
+      api-url: https://generativelanguage.googleapis.com/v1beta/chat/completions
+      api-key: your_gemini_api_key
 
 logging:
   level:
