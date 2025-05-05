@@ -5,6 +5,7 @@ import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.AiModelRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -15,6 +16,7 @@ import java.util.Map;
 /**
  * Controller pentru expunerea informațiilor despre utilizatorul curent.
  */
+@Slf4j
 @RestController
 @RequestMapping("/api")
 public class UserController {
@@ -34,6 +36,10 @@ public class UserController {
      */
     @GetMapping("/user")
     public UserDto getUserInfo(@AuthenticationPrincipal OAuth2User oauthUser) {
+        if (oauthUser == null) {
+            log.error("OAuth2User is null in getUserInfo");
+            throw new IllegalStateException("No authenticated OAuth2 user found");
+        }
         String username = oauthUser.getAttribute("username");
         String displayName = oauthUser.getAttribute("display_name");
         if (displayName == null) {
