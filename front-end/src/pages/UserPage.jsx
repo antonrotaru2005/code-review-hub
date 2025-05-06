@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getUserInfo, getUserFeedbacks } from '../api/user';
+import { sendChat } from '../api/chat';
 import {
   Navbar, Nav, Container, Card,
   Spinner, Alert, Row, Col,
@@ -15,13 +16,14 @@ export default function UserPage() {
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [selectedAi, setSelectedAi] = useState(null);
-  const [selectedModel, setSelectedModel] = useState(null);
   const navigate = useNavigate();
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState([]); 
+  const [chatInput, setChatInput] = useState('');
 
   const aiModels = [
-    { id: 1, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4o' },
-    { id: 2, ai: 'ChatGPT', model: 'gpt-4-turbo',      label: 'GPT-4 Turbo' },
+    { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini',      label: 'GPT-4o-mini' },
+    { id: 2, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4o' },
     { id: 3, ai: 'ChatGPT', model: 'o3',               label: 'o3' },
     { id: 4, ai: 'ChatGPT', model: 'o4-mini',          label: 'o4 Mini' },
   
@@ -34,8 +36,7 @@ export default function UserPage() {
     { id: 9, ai: 'Gemini',  model: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro' },
     { id: 10,ai: 'Gemini',  model: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
     { id: 11,ai: 'Gemini',  model: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro' },
-  ];
-  
+  ];  
 
   function groupByRepo(feedbacks) {
     return feedbacks.reduce((acc, fb) => {
@@ -49,10 +50,6 @@ export default function UserPage() {
       try {
         const u = await getUserInfo();
         setUser(u);
-        if (u.aiModel) {
-          setSelectedAi(u.aiModel.ai);
-          setSelectedModel(u.aiModel.model);
-        }
         const fbs = await getUserFeedbacks(u.username);
         setFeedbacks(fbs);
       } catch (e) {
@@ -63,6 +60,25 @@ export default function UserPage() {
     }
     load();
   }, []);
+
+  const handleSend = async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    // 1. adaugă ce-a scris user-ul
+    setChatMessages(m => [...m, { sender: 'user', text }]);
+    setChatInput('');
+    try {
+      // 2. apelează API-ul
+      console.log("AI: " + user.aiModel.ai + "\nModel: " + user.aiModel.model + "\nText: " + text)
+      const aiReply = await sendChat(user.aiModel.ai, user.aiModel.model, text);
+      // 3. adaugă răspunsul AI-ului
+      setChatMessages(m => [...m, { sender: 'ai', text: aiReply }]);
+    } catch (err) {
+      console.error('Chat failed:', err);
+      setChatMessages(m => [...m, { sender: 'ai', text: '😢 Eroare la chat.' }]);
+    }
+  };
+  
 
   const handleLogout = async () => {
     try {
@@ -87,8 +103,6 @@ export default function UserPage() {
   };
 
   const handleModelChange = async (ai, model) => {
-    setSelectedAi(ai);
-    setSelectedModel(model);
     try {
       await fetch(
         `/api/user/ai?ai=${encodeURIComponent(ai)}&model=${encodeURIComponent(model)}`,
@@ -96,10 +110,6 @@ export default function UserPage() {
       );
       const updatedUser = await getUserInfo();
       setUser(updatedUser);
-      if (updatedUser.aiModel) {
-        setSelectedAi(updatedUser.aiModel.ai);
-        setSelectedModel(updatedUser.aiModel.model);
-      }
     } catch (e) {
       console.error('Failed to set model preference:', e);
     }
@@ -232,7 +242,7 @@ export default function UserPage() {
                               key={model.model}
                               eventKey={model.model}
                               active={
-                                selectedModel === model.model
+                                user.aiModel.model === model.model
                               }
                             >
                               {model.label}
@@ -263,7 +273,7 @@ export default function UserPage() {
                       <span className="text-muted">
                         Current AI model:{' '}
                         <strong>
-                          {user?.aiModel}
+                          {user?.aiModel.ai}: {user?.aiModel.model}
                         </strong>
                       </span>
                     </Card>
@@ -398,8 +408,8 @@ export default function UserPage() {
             </div>
           </Container>
         </footer>
-        <style jsx>{`
-          @import url('https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&display=swap');
+        <style jsx>{
+          `@import url('https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&display=swap');
 
             .sticky-sidebar {
               position: sticky;
@@ -446,7 +456,131 @@ export default function UserPage() {
           .ai-dropdown .dropdown-menu{
             width:100% !important;
           }
-          `}</style>
+
+          .ai-chat-button {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #0d6efd;
+            color: #fff;
+            border: none;
+            border-radius: 50%;
+            width: 56px;
+            height: 56px;
+            font-size: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+            cursor: pointer;
+            z-index: 1000;
+          }
+
+          .ai-chat-window {
+            position: fixed;
+            bottom: 90px;
+            right: 20px;
+            width: 300px;
+            height: 400px;
+            background: #fff;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+            z-index: 1000;
+          }
+
+          .ai-chat-header {
+            background: #0d6efd;
+            color: #fff;
+            padding: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+
+          .ai-chat-body {
+            flex: 1;
+            padding: 8px;
+            overflow-y: auto;
+            background: #f9f9f9;
+          }
+
+          .chat-message {
+            margin-bottom: 6px;
+            padding: 6px 8px;
+            border-radius: 4px;
+          }
+          .chat-message.user {
+            background: #d1e7dd;
+            text-align: right;
+          }
+          .chat-message.ai {
+            background: #fff;
+            text-align: left;
+          }
+
+          .ai-chat-footer {
+            padding: 8px;
+            display: flex;
+            gap: 4px;
+            border-top: 1px solid #ddd;
+          }
+          .ai-chat-footer input {
+            flex: 1;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+          }
+          .ai-chat-footer button {
+            padding: 6px 12px;
+            border: none;
+            background: #0d6efd;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+          }
+          `
+          }</style>
+
+          {/* —–––––––––––––––––––––––––––––––––––––––––––––– */}
+          {/* Floating AI Chat Button */}
+          <button
+            className="ai-chat-button"
+            onClick={() => setChatOpen(o => !o)}
+            title="Chat with AI"
+          >
+            🤖
+          </button>
+
+          {/* Chat window */}
+          {chatOpen && (
+            <div className="ai-chat-window">
+              <div className="ai-chat-header">
+                <span>AI Assistant</span>
+                <button onClick={() => setChatOpen(false)}>✕</button>
+              </div>
+              <div className="ai-chat-body">
+                {chatMessages.map((m, i) => (
+                  <div key={i} className={`chat-message ${m.sender}`}>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                  </div>
+                ))}
+              </div>
+              <div className="ai-chat-footer">
+                <input
+                  type="text"
+                  placeholder="Type a message…"
+                  value={chatInput}
+                  onChange={e => setChatInput(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && handleSend()}
+                />
+                <button onClick={handleSend}>Send</button>
+              </div>
+            </div>
+          )}
       </div>
     </>
   );

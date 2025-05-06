@@ -1,5 +1,7 @@
 package com.review.reviewservice.dto;
 
+import com.review.reviewservice.model.entity.AiModel;
+
 import java.util.List;
 
 /**
@@ -10,6 +12,6 @@ public record UserDto(
         String name,
         String email,
         String avatar,
-        String aiModel,
+        AiModel aiModel,
         List<String> roles
 ) {}

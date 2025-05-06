@@ -60,8 +60,8 @@ public class UserController {
                 avatarUrl = (String) av.get("href");
             }
         }
-        String ai_model = appUser.getAiModel().getAi() + ": " + appUser.getAiModel().getModel();
-
+        AiModel ai_model = appUser.getAiModel();
+        
         List<String> roles = appUser.getRoles().stream()
                 .map(Role::getName)
                 .toList();

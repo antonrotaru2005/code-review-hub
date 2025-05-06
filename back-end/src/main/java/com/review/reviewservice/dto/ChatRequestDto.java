@@ -1,7 +1,9 @@
 package com.review.reviewservice.dto;
 
+import jakarta.validation.constraints.NotEmpty;
+
 public record ChatRequestDto(
-        String ai,
-        String model,
-        String message
+        @NotEmpty String ai,
+        @NotEmpty String model,
+        @NotEmpty String message
 ) {}

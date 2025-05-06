@@ -1,10 +1,12 @@
 package com.review.reviewservice.model.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 
 @Entity
 @Table(name = "ai_models")
+@JsonIgnoreProperties({ "hibernateLazyInitializer", "handler" })
 @Data
 public class AiModel {
 

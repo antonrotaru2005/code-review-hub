@@ -1,6 +1,7 @@
 package com.review.reviewservice.service;
 
 import com.review.reviewservice.dto.UserDto;
+import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.UserRepository;
@@ -51,8 +52,8 @@ public class UserService {
                 .map(Role::getName)
                 .toList();
 
-        String aiModel = user.getAiModel() != null
-                ? user.getAiModel().getModel()
+        AiModel aiModel = user.getAiModel() != null
+                ? user.getAiModel()
                 : null;
 
         return new UserDto(
