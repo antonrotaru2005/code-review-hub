@@ -9,8 +9,8 @@ CREATE TABLE ai_models (
 );
 
 -- Insert values for ChatGPT models
+INSERT INTO ai_models (ai, model) VALUES ('ChatGPT', 'gpt-4o-mini');
 INSERT INTO ai_models (ai, model) VALUES ('ChatGPT', 'gpt-4o');
-INSERT INTO ai_models (ai, model) VALUES ('ChatGPT', 'gpt-4-turbo');
 INSERT INTO ai_models (ai, model) VALUES ('ChatGPT', 'o3');
 INSERT INTO ai_models (ai, model) VALUES ('ChatGPT', 'o4-mini');
 
