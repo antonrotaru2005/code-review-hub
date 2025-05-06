@@ -20,10 +20,10 @@ export default function UserPage() {
   const navigate = useNavigate();
 
   const aiModels = [
-    { id: 1, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4O' },
+    { id: 1, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4o' },
     { id: 2, ai: 'ChatGPT', model: 'gpt-4-turbo',      label: 'GPT-4 Turbo' },
-    { id: 3, ai: 'ChatGPT', model: 'o3',               label: 'O3' },
-    { id: 4, ai: 'ChatGPT', model: 'o4-mini',          label: 'O4 Mini' },
+    { id: 3, ai: 'ChatGPT', model: 'o3',               label: 'o3' },
+    { id: 4, ai: 'ChatGPT', model: 'o4-mini',          label: 'o4 Mini' },
   
     { id: 5, ai: 'Grok',    model: 'grok',             label: 'Grok' },
     { id: 6, ai: 'Grok',    model: 'grok-3',           label: 'Grok 3' },
@@ -144,9 +144,6 @@ export default function UserPage() {
             <Navbar.Toggle aria-controls="basic-navbar-nav" />
             <Navbar.Collapse id="basic-navbar-nav">
               <Nav className="ms-auto allign-items-center">
-                <Nav.Link as={Link} to="/">
-                  Home
-                </Nav.Link>
                 <Dropdown align="end">
                         <Dropdown.Toggle as={Nav.Link} className="avatar-link p-0">
                           <img
@@ -425,8 +422,8 @@ export default function UserPage() {
             }
 
           .navbar-avatar {
-              width: 30px;
-              height: 30px;
+              width: 35px;
+              height: 35px;
               border-radius: 50%;
               object-fit: cover;
               transition: opacity 0.2s ease;
