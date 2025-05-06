@@ -42,6 +42,8 @@ public class SecurityConfig {
                 // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/feedbacks/**").authenticated()
+                        .requestMatchers("/api/chat").authenticated()
+                        .requestMatchers("/api/user/**").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
