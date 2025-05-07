@@ -35,7 +35,7 @@ public class ChatController {
         String reply = chatService.chat(
                 request.ai(),
                 request.model(),
-                request.message()
+                request.history()
         );
         return ResponseEntity.ok(new ChatResponseDto(reply));
     }

@@ -18,7 +18,17 @@ export default function UserPage() {
   const [error, setError] = useState(null);
   const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
-  const [chatMessages, setChatMessages] = useState([]); 
+  
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem('chatMessages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse saved chatMessages:', e);
+      return [];
+    }
+  });
+
   const [chatInput, setChatInput] = useState('');
 
   const aiModels = [
@@ -61,24 +71,39 @@ export default function UserPage() {
     load();
   }, []);
 
+  useEffect(() => {
+    window.localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
+  }, [chatMessages]);
+  
+
   const handleSend = async () => {
     const text = chatInput.trim();
-    if (!text) return;
-    // 1. adaugă ce-a scris user-ul
-    setChatMessages(m => [...m, { sender: 'user', text }]);
+    if (!text || !user?.aiModel) return;
+
+    setChatMessages(prev => [...prev, { sender: 'user', text }]);
     setChatInput('');
+
+    const history = [
+      ...chatMessages.map(m => ({
+        role: m.sender === 'user' ? 'user' : 'assistant',
+        content: m.text
+      })),
+      { role: 'user', content: text }
+    ];
+
     try {
-      // 2. apelează API-ul
-      console.log("AI: " + user.aiModel.ai + "\nModel: " + user.aiModel.model + "\nText: " + text)
-      const aiReply = await sendChat(user.aiModel.ai, user.aiModel.model, text);
-      // 3. adaugă răspunsul AI-ului
-      setChatMessages(m => [...m, { sender: 'ai', text: aiReply }]);
+      const aiReply = await sendChat(
+        user.aiModel.ai,
+        user.aiModel.model,
+        history
+      );
+      setChatMessages(prev => [...prev, { sender: 'ai', text: aiReply }]);
     } catch (err) {
       console.error('Chat failed:', err);
-      setChatMessages(m => [...m, { sender: 'ai', text: '😢 Eroare la chat.' }]);
+      setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Eroare la chat.' }]);
     }
   };
-  
+
 
   const handleLogout = async () => {
     try {
@@ -90,6 +115,7 @@ export default function UserPage() {
       console.error('Logout failed', err);
     } finally {
       setUser(null);
+      localStorage.removeItem('chatMessages');
       navigate('/');
     }
   };

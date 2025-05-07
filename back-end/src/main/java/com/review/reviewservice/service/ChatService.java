@@ -1,8 +1,10 @@
 package com.review.reviewservice.service;
 
+import com.review.reviewservice.dto.MessageDto;
 import org.springframework.stereotype.Service;
-import com.review.reviewservice.service.CodeReviewService;
 import org.springframework.beans.factory.annotation.Autowired;
+
+import java.util.List;
 
 @Service
 public class ChatService {
@@ -14,8 +16,7 @@ public class ChatService {
         this.codeReviewService = codeReviewService;
     }
 
-
-    public String chat(String ai, String model, String message) {
-        return codeReviewService.chat(ai, model, message);
+    public String chat(String ai, String model, List<MessageDto> history) {
+        return codeReviewService.chat(ai, model, history);
     }
 }

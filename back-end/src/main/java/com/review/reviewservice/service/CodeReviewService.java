@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.review.reviewservice.config.AiProperties;
 import com.review.reviewservice.dto.FileData;
+import com.review.reviewservice.dto.MessageDto;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -46,7 +47,7 @@ public class CodeReviewService {
             if (isGemini(aiName)) {
                 apiUrl = apiUrl + "?key=" + p.getApiKey();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                ArrayNode contents = buildGeminiContents(files, SYSTEM_PROMPT);
+                ArrayNode contents = buildGeminiContents(files);
                 body.set("contents", contents);
                 body.set("generationConfig", objectMapper.createObjectNode().put("temperature", 0.7));
             } else {
@@ -75,7 +76,7 @@ public class CodeReviewService {
     /**
      * Engages in a chat conversation with the specified AI model.
      */
-    public String chat(String aiName, String model, String userMessage) {
+    public String chat(String aiName, String model, List<MessageDto> history) {
         try {
             AiProperties.Provider p = selectProvider(aiName);
             String apiUrl = p.getApiUrl();
@@ -83,28 +84,64 @@ public class CodeReviewService {
             ObjectNode body = objectMapper.createObjectNode();
 
             if (isGemini(aiName)) {
+                // Gemini-style history
                 apiUrl = apiUrl + "?key=" + p.getApiKey();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                ArrayNode contents = buildGeminiContents(List.of(), CHAT_PROMPT);
-                contents.add(objectMapper.createObjectNode()
-                        .put("role", "user")
-                        .set("parts", objectMapper.createArrayNode()
-                                .add(objectMapper.createObjectNode().put("text", userMessage))));
+
+                ArrayNode contents = objectMapper.createArrayNode();
+                // system prompt
+                contents.add(
+                        objectMapper.createObjectNode()
+                                .put("role", "user")
+                                .set("parts",
+                                        objectMapper.createArrayNode()
+                                                .add(objectMapper.createObjectNode().put("text", CHAT_PROMPT)))
+                );
+                // replay history
+                for (MessageDto m : history) {
+                    contents.add(
+                            objectMapper.createObjectNode()
+                                    .put("role", m.role())
+                                    .set("parts",
+                                            objectMapper.createArrayNode()
+                                                    .add(objectMapper.createObjectNode().put("text", m.content())))
+                );
+                }
                 body.set("contents", contents);
-                body.set("generationConfig", objectMapper.createObjectNode().put("temperature", 0.7));
+                body.set("generationConfig",
+                        objectMapper.createObjectNode().put("temperature", 0.7));
+
             } else {
+                // OpenAI/ChatGPT style with full history
                 headers.setBearerAuth(p.getApiKey());
                 headers.setContentType(MediaType.APPLICATION_JSON);
+
                 body.put("model", model);
                 ArrayNode messages = objectMapper.createArrayNode();
-                messages.add(objectMapper.createObjectNode().put("role", "system").put("content", CHAT_PROMPT));
-                messages.add(objectMapper.createObjectNode().put("role", "user").put("content", userMessage));
+                // system prompt
+                messages.add(
+                        objectMapper.createObjectNode()
+                                .put("role", "system")
+                                .put("content", CHAT_PROMPT)
+                );
+                // user + assistant turns
+                for (MessageDto m : history) {
+                    messages.add(
+                            objectMapper.createObjectNode()
+                                    .put("role", m.role())
+                                    .put("content", m.content())
+                    );
+                }
                 body.set("messages", messages);
             }
 
             HttpEntity<String> req = new HttpEntity<>(body.toString(), headers);
-            String resp = restTemplate.exchange(apiUrl, HttpMethod.POST, req, String.class).getBody();
+            String resp = restTemplate
+                    .exchange(apiUrl, HttpMethod.POST, req, String.class)
+                    .getBody();
+
             return extractContent(resp, aiName);
+
         } catch (Exception e) {
             log.error("Error during {} chat: {}", aiName, e.getMessage(), e);
             return "Error during " + aiName + " chat: " + e.getMessage();
@@ -125,12 +162,12 @@ public class CodeReviewService {
         return "gemini".equalsIgnoreCase(aiName);
     }
 
-    private ArrayNode buildGeminiContents(List<FileData> files, String prompt) {
+    private ArrayNode buildGeminiContents(List<FileData> files) {
         ArrayNode contents = objectMapper.createArrayNode();
         contents.add(objectMapper.createObjectNode()
                 .put("role", "user")
                 .set("parts", objectMapper.createArrayNode()
-                        .add(objectMapper.createObjectNode().put("text", prompt))));
+                        .add(objectMapper.createObjectNode().put("text", CodeReviewService.SYSTEM_PROMPT))));
         for (FileData f : files) {
             contents.add(objectMapper.createObjectNode()
                     .put("role", "user")
