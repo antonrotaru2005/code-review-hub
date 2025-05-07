@@ -112,7 +112,6 @@ public class CodeReviewService {
                         objectMapper.createObjectNode().put("temperature", 0.7));
 
             } else {
-                // OpenAI/ChatGPT style with full history
                 headers.setBearerAuth(p.getApiKey());
                 headers.setContentType(MediaType.APPLICATION_JSON);
 

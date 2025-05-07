@@ -57,12 +57,12 @@ public class UserService {
                 : null;
 
         return new UserDto(
-                user.getUsername(),        // username
-                user.getName(),        // name (sau alt câmp de display)
-                user.getEmail(),           // email
+                user.getUsername(),
+                user.getName(),
+                user.getEmail(),
                 user.getAvatar(),
-                aiModel,                   // aiModel
-                roles                      // lista de roluri
+                aiModel,
+                roles
         );
     }
 }

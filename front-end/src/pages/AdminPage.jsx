@@ -40,7 +40,7 @@ export default function AdminPage() {
 
   const handleUserSelect = async (user) => {
     setSelectedUser(user);
-    console.log('Selected user attributes:', user); // Log the selected user's attributes
+    console.log('Selected user attributes:', user);
     setFeedbacks([]);
     setLoadingFeedbacks(true);
     try {
@@ -77,7 +77,7 @@ export default function AdminPage() {
       <Alert variant="danger" className="m-4">
         <Alert.Heading>Error</Alert.Heading>
         <p>{error}</p>
-        <Link to="/" className="btn btn-primary">Return to Home</Link>
+        <Link to="/user" className="btn btn-primary">Return to User Page</Link>
       </Alert>
     );
   }
