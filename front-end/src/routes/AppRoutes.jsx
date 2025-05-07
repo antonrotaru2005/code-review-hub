@@ -3,6 +3,7 @@ import LoginPage from '../pages/LoginPage';
 import HomePage from '../pages/HomePage';
 import UserPage from '../pages/UserPage';
 import SignUpPage from '../pages/SignUpPage';
+import AdminPage from '../pages/AdminPage';
 
 function AppRoutes(){
     return (
@@ -12,6 +13,7 @@ function AppRoutes(){
                 <Route path="/login" element={<LoginPage />} />
                 <Route path="/signup" element={<SignUpPage />} />
                 <Route path="/user" element={<UserPage />} />
+                <Route path="/admin" element={<AdminPage />} />
             </Routes>
         </Router>
     );

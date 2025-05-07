@@ -23,6 +23,12 @@ public class User {
     @Column(unique = true)
     private String email;
 
+    @Column
+    private String name;
+
+    @Column
+    private String avatar;
+
     private boolean enabled;
 
     @ManyToMany

@@ -62,7 +62,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         // 2. Determină fluxul: signup sau login după registrationId
         String regId = userRequest.getClientRegistration().getRegistrationId();
         boolean isSignup = "bitbucket-signup".equals(regId);
-        boolean exists   = userRepository.findByUsername(username).isPresent();
+        boolean exists = userRepository.findByUsername(username).isPresent();
 
         if (isSignup) {
             // Signup: eroare dacă există deja
@@ -88,6 +88,9 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         Set<GrantedAuthority> auth = appUser.getRoles().stream()
                 .map(r -> new SimpleGrantedAuthority(r.getName()))
                 .collect(Collectors.toSet());
+        log.info("Building OAuth2User for username: {}, roles: {}",
+                appUser.getUsername(),
+                auth.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()));
         return new DefaultOAuth2User(auth, attributes, "username");
     }
 
@@ -101,6 +104,15 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         String token = userRequest.getAccessToken().getTokenValue();
         String email = emailFetcherService.fetchPrimaryEmail(token);
         String uuid = oauthUser.getAttribute("uuid");
+        String name = oauthUser.getAttribute("display_name");
+        String avatarUrl = null;
+        Object links = oauthUser.getAttribute("links");
+        if (links instanceof Map<?, ?> map) {
+            Object avatar = map.get("avatar");
+            if (avatar instanceof Map<?, ?> av) {
+                avatarUrl = (String) av.get("href");
+            }
+        }
 
         // Assume the role "ROLE_USER"
         Role defaultRole = roleRepository.findByName("ROLE_USER")
@@ -118,6 +130,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
         appUser.setEnabled(true);
         appUser.getRoles().add(defaultRole);
         appUser.setAiModel(defaultAiModel);
+        appUser.setName(name);
+        appUser.setAvatar(avatarUrl);
         userRepository.save(appUser);
         log.info("New user created: {}", username);
 
