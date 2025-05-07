@@ -58,9 +58,9 @@ public class UserService {
 
         return new UserDto(
                 user.getUsername(),        // username
-                user.getUsername(),        // name (sau alt câmp de display)
+                user.getName(),        // name (sau alt câmp de display)
                 user.getEmail(),           // email
-                null,
+                user.getAvatar(),
                 aiModel,                   // aiModel
                 roles                      // lista de roluri
         );
