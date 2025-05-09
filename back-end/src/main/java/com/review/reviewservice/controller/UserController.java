@@ -21,7 +21,7 @@ import java.util.Map;
  */
 @Slf4j
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/user")
 public class UserController {
 
     private final UserRepository userRepository;
@@ -38,7 +38,7 @@ public class UserController {
      * @param oauthUser principalul OAuth2 conținând atributele Bitbucket
      * @return UserDto cu username, display name și email
      */
-    @GetMapping("/user")
+    @GetMapping
     public UserDto getUserInfo(@AuthenticationPrincipal OAuth2User oauthUser) {
         if (oauthUser == null) {
             log.error("OAuth2User is null in getUserInfo");
@@ -76,7 +76,7 @@ public class UserController {
      * @param model Numele modelului (ex. gpt-4o-mini, gpt-3.5-turbo, grok)
      * @return Mesaj de confirmare
      */
-    @PostMapping("/user/ai")
+    @PostMapping("/ai")
     public ResponseEntity<String> setAiPreference(
             @AuthenticationPrincipal OAuth2User oauthUser,
             @RequestParam String ai,

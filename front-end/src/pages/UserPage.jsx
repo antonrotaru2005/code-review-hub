@@ -6,7 +6,8 @@ import { sendChat } from '../api/chat';
 import {
   Navbar, Nav, Container, Card,
   Spinner, Alert, Row, Col,
-  Dropdown, DropdownButton
+  Dropdown, DropdownButton,
+  Button
 } from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
@@ -190,7 +191,7 @@ export default function UserPage() {
                         </Dropdown.Toggle>
                         <Dropdown.Menu>
                           <Dropdown.Item onClick={handleToggleTheme}>
-                            Theme
+                            Switch Theme
                           </Dropdown.Item>
                           { user?.roles?.includes('ROLE_ADMIN') && (
                             <Dropdown.Item onClick={handleSwitchToAdmin}>
@@ -212,7 +213,7 @@ export default function UserPage() {
         <main className="flex-grow-1 py-5">
           <Container>
             <Row>
-              <Col className="sticky-sidebar" md={3}>
+              <Col className="sticky-sidebar sidebar-scaled" md={3}>
                 <Card className="shadow-sm mb-4 text-center">
                   <Card.Body>
                     {user.avatar ? (
@@ -251,7 +252,6 @@ export default function UserPage() {
                     </p>
                   </Card.Body>
                 </Card>
-
                 <Card className="shadow-sm mb-4">
                   <Card.Body>
                     <h6 className="mb-3">Choose Your AI Model</h6>
@@ -283,7 +283,7 @@ export default function UserPage() {
                 </Card>
               </Col>
 
-              <Col md={9}>
+              <Col md={9} className='sidebar-scaled'>
                 <div className="d-flex justify-content-between align-items-center mb-3">
                   <h3
                     className="mb-0"
@@ -294,6 +294,15 @@ export default function UserPage() {
                   >
                     Your AI Feedbacks 🧠
                   </h3>
+                  <Link to="/create-pr">
+                    <Button
+                      variant="primary"
+                      className="me-3 fw-bold"
+                      style={{ minWidth: '140px' }}
+                    >
+                      Create PR
+                    </Button>
+                  </Link>
                   {user?.aiModel && (
                     <Card
                       className="shadow-sm px-3 py-2"

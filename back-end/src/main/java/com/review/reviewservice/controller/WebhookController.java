@@ -11,10 +11,12 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 @RestController
@@ -26,27 +28,40 @@ public class WebhookController {
     private final CodeReviewService codeReviewService;
     private final FeedbackService feedbackService;
     private final UserRepository userRepository;
+    private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired
     public WebhookController(BitbucketService bitbucketService, CodeReviewService codeReviewService,
                              FeedbackService feedbackService,
-                             UserRepository userRepository) {
+                             UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
         this.bitbucketService = bitbucketService;
         this.codeReviewService = codeReviewService;
         this.feedbackService = feedbackService;
         this.userRepository = userRepository;
+        this.messagingTemplate = messagingTemplate;
     }
 
     @Operation(summary = "Handle PR webhook", description = "Process Bitbucket pull-request event: generate and persist AI feedback based on the user's preferred AI, then comment on PR")
     @PostMapping("/bitbucket")
     public ResponseEntity<String> receiveWebhook(@RequestBody BitbucketWebhookPayload payload) {
-        // 1. Fetch modified files from Bitbucket
-        List<FileData> fetchedFiles = bitbucketService.getModifiedFiles(payload);
-
-        // 2. Determine the preferred AI for the user
         String uuid = payload.getPullRequest().getAuthor().getUuid();
         User user = userRepository.findByBitbucketUuid(uuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + uuid));
+        String username = user.getUsername();
+
+        // 1. Fetch modified files from Bitbucket
+        messagingTemplate.convertAndSend(
+                "/topic/feedback/" + username,
+                Map.of("stage", "Processing PR")
+        );
+
+        List<FileData> fetchedFiles = bitbucketService.getModifiedFiles(payload);
+
+        // 2. Determine the preferred AI for the user
+        messagingTemplate.convertAndSend(
+                "/topic/feedback/" + username,
+                Map.of("stage", "Files fetched")
+        );
 
         String ai = Optional.ofNullable(user.getAiModel())
                 .map(m -> m.getAi().toLowerCase())
@@ -56,6 +71,11 @@ public class WebhookController {
                 .orElse("gpt-4o");
 
         // 3. Generate feedback using the selected AI
+        messagingTemplate.convertAndSend(
+                "/topic/feedback/" + username,
+                Map.of("stage", "AI Code Analysis")
+        );
+
         String feedback = codeReviewService.reviewFiles(fetchedFiles, ai, model);
 
         if (feedback != null) {
@@ -63,10 +83,20 @@ public class WebhookController {
             String repoFullName = payload.getRepository().getFullName();
 
             // Post comment on PR
+            messagingTemplate.convertAndSend(
+                    "/topic/feedback/" + username,
+                    Map.of("stage", "Saving feedback")
+            );
+
             bitbucketService.postCommentToPullRequest(payload, feedback);
 
             // Save feedback to database
             feedbackService.save(prId, uuid, feedback, repoFullName);
+
+            messagingTemplate.convertAndSend(
+                    "/topic/feedback/" + username,
+                    Map.of("stage", "Done", "status", "done", "prId", prId)
+            );
         }
         return ResponseEntity.ok("Webhook processed and feedback saved using " + ai + " with model " + model + ".");
     }
