@@ -192,9 +192,12 @@ export default function UserPage() {
                           <Dropdown.Item onClick={handleToggleTheme}>
                             Theme
                           </Dropdown.Item>
-                          <Dropdown.Item onClick={handleSwitchToAdmin}>
-                            Switch to Admin
-                          </Dropdown.Item>
+                          { user?.roles?.includes('ROLE_ADMIN') && (
+                            <Dropdown.Item onClick={handleSwitchToAdmin}>
+                              Switch to Admin
+                            </Dropdown.Item>
+                            ) 
+                          }
                           <Dropdown.Divider />
                           <Dropdown.Item onClick={handleLogout}>
                             Log Out
@@ -333,10 +336,9 @@ export default function UserPage() {
                               <Card className="shadow-sm">
                                 <Card.Body>
                                   <Card.Title className="d-flex align-items-center">
-                                    <span className="text-primary me-2">
-                                      Pull Request #{fb.prId} -{' '}
-                                      {user?.aiModel}
-                                    </span>
+                                  <span className="text-primary me-2">
+                                    Pull Request #{fb.prId} – {user?.aiModel.model}
+                                  </span>
                                   </Card.Title>
                                   <ReactMarkdown
                                     remarkPlugins={[remarkGfm]}

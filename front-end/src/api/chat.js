@@ -7,14 +7,14 @@
  * @param {string} message
  * @returns {Promise<string>} reply
  */
-export async function sendChat(ai, model, message) {
+export async function sendChat(ai, model, history) {
   const res = await fetch('/api/chat', {
     method: 'POST',
     credentials: 'include',
     headers: {
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ ai, model, message })
+    body: JSON.stringify({ ai, model, history })
   });
   if (!res.ok) {
     const errorText = await res.text();
