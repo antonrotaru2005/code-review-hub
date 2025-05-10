@@ -4,8 +4,10 @@ import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
+import com.review.reviewservice.model.entity.WebhookToken;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.AiModelRepository;
+import com.review.reviewservice.model.repository.WebhookTokenRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -13,8 +15,10 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  * Controller pentru expunerea informațiilor despre utilizatorul curent.
@@ -26,11 +30,13 @@ public class UserController {
 
     private final UserRepository userRepository;
     private final AiModelRepository aiModelRepository;
+    private final WebhookTokenRepository webhookTokenRepository;
 
     @Autowired
-    public UserController(UserRepository userRepository, AiModelRepository aiModelRepository) {
+    public UserController(UserRepository userRepository, AiModelRepository aiModelRepository, WebhookTokenRepository webhookTokenRepository) {
         this.userRepository = userRepository;
         this.aiModelRepository = aiModelRepository;
+        this.webhookTokenRepository = webhookTokenRepository;
     }
 
     /**
@@ -92,5 +98,21 @@ public class UserController {
         userRepository.save(user);
 
         return ResponseEntity.ok("AI preference set to " + ai + " with model " + model + " for user " + username + ".");
+    }
+
+    @PostMapping("/webhook-token")
+    public ResponseEntity<Map<String,String>> generateToken(@AuthenticationPrincipal OAuth2User oauthUser) {
+        String username = oauthUser.getAttribute("username");
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+
+        String token = UUID.randomUUID().toString();
+        WebhookToken wt = new WebhookToken();
+        wt.setToken(token);
+        wt.setUser(user);
+        wt.setExpiresAt(LocalDateTime.now().plusHours(1));
+        webhookTokenRepository.save(wt);
+
+        return ResponseEntity.ok(Map.of("token", token));
     }
 }
