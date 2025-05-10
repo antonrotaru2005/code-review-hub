@@ -1,24 +1,31 @@
 // src/pages/CreatePrPage.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Container, Card, Spinner, Alert } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { FaCheckCircle } from 'react-icons/fa';
-import { getUserInfo } from '../api/user';
+import { getUserInfo, getWebhookToken } from '../api/user';
 
 export default function CreatePrPage() {
   const [user, setUser] = useState(null);
   const [stage, setStage] = useState('Waiting for PR...');
   const [done, setDone] = useState(false);
+  const [token, setToken] = useState(null);
+  const didFetchRef = useRef(false);
   const navigate = useNavigate();
 
   // 1. Fetch the user data for the username
   useEffect(() => {
+    if (didFetchRef.current) return;
+    didFetchRef.current = true;
+
     async function fetchUser() {
       try {
         const userData = await getUserInfo();
         setUser(userData);
+        const t = await getWebhookToken();
+        setToken(t);
       } catch (err) {
         console.error('Error fetching user:', err);
       }
@@ -70,7 +77,16 @@ export default function CreatePrPage() {
         <Card.Body>
           <ol>
             <li>In Bitbucket, go to Settings → Webhooks.</li>
-            <li>Add a new webhook with URL: <code>linktowebsite.ai/webhook/bitbucket</code>.</li>
+            <li>
+              Add a new webhook with URL:{" "}
+              {token ? (
+                <code>
+                  {window.location.origin}/webhook/bitbucket/{token}
+                </code>
+              ) : (
+                <em>Generating your one-time link…</em>
+              )}
+            </li>
             <li>Select Pull Request events (created, updated).</li>
             <li>Save and then create a Pull Request in the repository.</li>
           </ol>

@@ -4,10 +4,10 @@ import com.review.reviewservice.dto.BitbucketWebhookPayload;
 import com.review.reviewservice.dto.FileData;
 import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.User;
+import com.review.reviewservice.model.entity.WebhookToken;
 import com.review.reviewservice.model.repository.UserRepository;
+import com.review.reviewservice.model.repository.WebhookTokenRepository;
 import com.review.reviewservice.service.*;
-import io.swagger.v3.oas.annotations.Operation;
-import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -15,35 +15,49 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 @RestController
 @RequestMapping("/webhook")
-@Tag(name = "Webhook", description = "Receive pull-request webhooks from Bitbucket and manage AI preferences")
 public class WebhookController {
 
     private final BitbucketService bitbucketService;
     private final CodeReviewService codeReviewService;
     private final FeedbackService feedbackService;
     private final UserRepository userRepository;
+    private final WebhookTokenRepository webhookTokenRepository;
     private final SimpMessagingTemplate messagingTemplate;
 
     @Autowired
     public WebhookController(BitbucketService bitbucketService, CodeReviewService codeReviewService,
                              FeedbackService feedbackService,
-                             UserRepository userRepository, SimpMessagingTemplate messagingTemplate) {
+                             UserRepository userRepository, WebhookTokenRepository webhookTokenRepository, SimpMessagingTemplate messagingTemplate) {
         this.bitbucketService = bitbucketService;
         this.codeReviewService = codeReviewService;
         this.feedbackService = feedbackService;
         this.userRepository = userRepository;
+        this.webhookTokenRepository = webhookTokenRepository;
         this.messagingTemplate = messagingTemplate;
     }
 
-    @Operation(summary = "Handle PR webhook", description = "Process Bitbucket pull-request event: generate and persist AI feedback based on the user's preferred AI, then comment on PR")
-    @PostMapping("/bitbucket")
-    public ResponseEntity<String> receiveWebhook(@RequestBody BitbucketWebhookPayload payload) {
+    @PostMapping("/bitbucket/{token}")
+    public ResponseEntity<String> receiveWebhook(
+            @PathVariable String token,
+            @RequestBody BitbucketWebhookPayload payload) {
+        // Verify the token
+        WebhookToken wt = webhookTokenRepository.findByToken(token)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Token not found"));
+
+        if(wt.isUsed() || wt.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new ResponseStatusException(HttpStatus.GONE, "Token expired or already used");
+
+        wt.setUsed(true);
+        webhookTokenRepository.save(wt);
+
+        // Find the user
         String uuid = payload.getPullRequest().getAuthor().getUuid();
         User user = userRepository.findByBitbucketUuid(uuid)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found: " + uuid));
