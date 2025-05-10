@@ -21,3 +21,17 @@ export async function getUserFeedbacks(username) {
   }
   return res.json();
 }
+
+// 3. Fetch a one-time webhook token
+export async function getWebhookToken() {
+  const res = await fetch('/api/user/webhook-token', {
+    method: 'POST',
+    credentials: 'include'
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`getWebhookToken failed: ${res.status} — ${text}`);
+  }
+  const { token } = await res.json();
+  return token;
+}
