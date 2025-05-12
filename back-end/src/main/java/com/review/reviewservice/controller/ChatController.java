@@ -6,8 +6,6 @@ import com.review.reviewservice.service.ChatService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 
@@ -25,8 +23,7 @@ public class ChatController {
 
     @PostMapping
     public ResponseEntity<ChatResponseDto> chat(
-            @RequestBody ChatRequestDto request,
-            @AuthenticationPrincipal OAuth2User oauthUser
+            @RequestBody ChatRequestDto request
     ) {
         String reply = chatService.chat(
                 request.ai(),
