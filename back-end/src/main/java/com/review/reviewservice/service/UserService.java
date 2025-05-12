@@ -36,15 +36,6 @@ public class UserService {
     }
 
     /**
-     * Finds a user by username and returns as DTO.
-     */
-    public UserDto getUserByUsername(String username) {
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalArgumentException("User not found: " + username));
-        return toDto(user);
-    }
-
-    /**
      * Maps User entity to UserDto, including roles.
      */
     private UserDto toDto(User user) {

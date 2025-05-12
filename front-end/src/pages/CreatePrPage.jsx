@@ -76,20 +76,29 @@ export default function CreatePrPage() {
         <Card.Header>Configuration Instructions</Card.Header>
         <Card.Body>
           <ol>
-            <li>In Bitbucket, go to Settings → Webhooks.</li>
             <li>
-              Add a new webhook with URL:{" "}
+              In Bitbucket, go to <strong>Repository Settings&nbsp;→&nbsp;Webhooks</strong>.
+            </li>
+            <li>
+              <strong>Add a new webhook with URL:</strong>{" "}
               {token ? (
-                <code>
-                  {window.location.origin}/webhook/bitbucket/{token}
-                </code>
+                <strong>
+                  <code>
+                    {window.location.origin}/webhook/bitbucket/{token}
+                  </code>
+                </strong>
               ) : (
                 <em>Generating your one-time link…</em>
               )}
             </li>
-            <li>Select Pull Request events (created, updated).</li>
-            <li>Save and then create a Pull Request in the repository.</li>
+            <li>
+              Select <strong>Pull Request events</strong> (created, updated).
+            </li>
+            <li>
+              <strong>Save</strong> and then <strong>create a Pull Request</strong> in the repository.
+            </li>
           </ol>
+
         </Card.Body>
       </Card>
 

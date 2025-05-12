@@ -48,11 +48,11 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
 
-                /*// Handler of Access Denied
+                // Handler of Access Denied
                 .exceptionHandling(ex -> ex
                         .accessDeniedHandler((req, res, ex2) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied"))
-                )*/
+                )
 
                 // OAuth2 Login configuration
                 .oauth2Login(oauth2 -> oauth2
