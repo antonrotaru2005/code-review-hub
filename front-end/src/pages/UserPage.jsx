@@ -3,58 +3,48 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getUserInfo, getUserFeedbacks } from '../api/user';
 import { sendChat } from '../api/chat';
-import {
-  Navbar, Nav, Container, Card,
-  Spinner, Alert, Row, Col,
-  Dropdown, DropdownButton,
-  Button
-} from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
-
+import { FaRobot, FaCaretDown, FaSun, FaMoon } from 'react-icons/fa';
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
   const [chatOpen, setChatOpen] = useState(false);
-  
   const [chatMessages, setChatMessages] = useState(() => {
     try {
       const saved = window.localStorage.getItem('chatMessages');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
-      console.error('Failed to parse saved chatMessages:', e);
       return [];
     }
   });
-
   const [chatInput, setChatInput] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false); // New state for dropdown
+  const navigate = useNavigate();
+  const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
+  const [theme, setTheme] = useState('dark');
 
   const aiModels = [
-    { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini',      label: 'GPT-4o-mini' },
-    { id: 2, ai: 'ChatGPT', model: 'gpt-4o',           label: 'GPT-4o' },
-    { id: 3, ai: 'ChatGPT', model: 'o3',               label: 'o3' },
-    { id: 4, ai: 'ChatGPT', model: 'o4-mini',          label: 'o4 Mini' },
-  
-    { id: 5, ai: 'Grok',    model: 'grok',             label: 'Grok' },
-    { id: 6, ai: 'Grok',    model: 'grok-3',           label: 'Grok 3' },
-  
-    { id: 7, ai: 'Copilot', model: 'copilot-codex',    label: 'Copilot Codex' },
-    { id: 8, ai: 'Copilot', model: 'copilot-gpt-4',    label: 'Copilot GPT-4' },
-  
-    { id: 9, ai: 'Gemini',  model: 'gemini-1.5-pro',   label: 'Gemini 1.5 Pro' },
-    { id: 10,ai: 'Gemini',  model: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
-    { id: 11,ai: 'Gemini',  model: 'gemini-2.5-pro',   label: 'Gemini 2.5 Pro' },
-  ];  
+    { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini', label: 'GPT-4o-mini' },
+    { id: 2, ai: 'ChatGPT', model: 'gpt-4o', label: 'GPT-4o' },
+    { id: 3, ai: 'ChatGPT', model: 'o3', label: 'o3' },
+    { id: 4, ai: 'ChatGPT', model: 'o4-mini', label: 'o4 Mini' },
+    { id: 5, ai: 'Grok', model: 'grok', label: 'Grok' },
+    { id: 6, ai: 'Grok', model: 'grok-3', label: 'Grok 3' },
+    { id: 7, ai: 'Copilot', model: 'copilot-codex', label: 'Copilot Codex' },
+    { id: 8, ai: 'Copilot', model: 'copilot-gpt-4', label: 'Copilot GPT-4' },
+    { id: 9, ai: 'Gemini', model: 'gemini-1.5-pro', label: 'Gemini 1.5 Pro' },
+    { id: 10, ai: 'Gemini', model: 'gemini-1.5-flash', label: 'Gemini 1.5 Flash' },
+    { id: 11, ai: 'Gemini', model: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
+  ];
 
-  function groupByRepo(feedbacks) {
+  const groupByRepo = (feedbacks) => {
     return feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
       return acc;
     }, {});
-  }
+  };
 
   useEffect(() => {
     async function load() {
@@ -73,68 +63,46 @@ export default function UserPage() {
   }, []);
 
   useEffect(() => {
+    document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
     window.localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
   }, [chatMessages]);
-  
 
   const handleSend = async () => {
     const text = chatInput.trim();
     if (!text || !user?.aiModel) return;
-
     setChatMessages(prev => [...prev, { sender: 'user', text }]);
     setChatInput('');
-
-    const history = [
-      ...chatMessages.map(m => ({
-        role: m.sender === 'user' ? 'user' : 'assistant',
-        content: m.text
-      })),
-      { role: 'user', content: text }
-    ];
-
+    const history = [...chatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), { role: 'user', content: text }];
     try {
-      const aiReply = await sendChat(
-        user.aiModel.ai,
-        user.aiModel.model,
-        history
-      );
+      const aiReply = await sendChat(user.aiModel.ai, user.aiModel.model, history);
       setChatMessages(prev => [...prev, { sender: 'ai', text: aiReply }]);
     } catch (err) {
-      console.error('Chat failed:', err);
       setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Eroare la chat.' }]);
     }
   };
 
-
   const handleLogout = async () => {
     try {
-      await fetch('/logout', {
-        method: 'POST',
-        credentials: 'include'
-      });
-    } catch (err) {
-      console.error('Logout failed', err);
-    } finally {
+      await fetch('/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+    finally {
       setUser(null);
       localStorage.removeItem('chatMessages');
       navigate('/');
     }
   };
 
-  const handleToggleTheme = () => {
-    console.log('Toggle theme');
-  };
-
-  const handleSwitchToAdmin = () => {
-    navigate('/admin');
-  };
+  const handleSwitchToAdmin = () => navigate('/admin');
+  const handleToggleTheme = () => setThemeOptionsOpen(!themeOptionsOpen);
+  const handleThemeSelect = (selectedTheme) => {
+  setTheme(selectedTheme);
+  setThemeOptionsOpen(false);
+  document.body.className = selectedTheme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
+};
 
   const handleModelChange = async (ai, model) => {
     try {
-      await fetch(
-        `/api/user/ai?ai=${encodeURIComponent(ai)}&model=${encodeURIComponent(model)}`,
-        { method: 'POST', credentials: 'include' }
-      );
+      await fetch(`/api/user/ai?ai=${encodeURIComponent(ai)}&model=${encodeURIComponent(model)}`, { method: 'POST', credentials: 'include' });
       const updatedUser = await getUserInfo();
       setUser(updatedUser);
     } catch (e) {
@@ -142,483 +110,240 @@ export default function UserPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <Spinner animation="border" variant="primary" />
-        <span className="ms-2">Loading...</span>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <Alert variant="danger" className="w-50">
-          <Alert.Heading>Error</Alert.Heading>
-          <p>
-            Please <Link to="/login">Log In</Link> or{' '}
-            <Link to="/signup">Sign Up</Link>
-          </p>
-        </Alert>
-      </div>
-    );
-  }
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-white text-xl">Loading...</div>;
+  if (error) return <div className="min-h-screen flex items-center justify-center text-white text-xl">{error}</div>;
 
   const grouped = groupByRepo(feedbacks);
   const uniqueAis = [...new Set(aiModels.map(m => m.ai))];
 
-  return (
-    <>
+return (
+  <div className="relative min-h-screen bg-black text-white overflow-hidden font-['Gabarito']">
+    {/* Background */}
+    <div className="absolute inset-0 z-0 opacity-30">
+      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+    </div>
 
-
-      <div className="d-flex flex-column min-vh-100">
-        <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
-          <Container>
-            <Navbar.Brand className="navbar-brand" as={Link} to="/">
-              Code Review Hub
-            </Navbar.Brand>
-            <Navbar.Toggle aria-controls="basic-navbar-nav" />
-            <Navbar.Collapse id="basic-navbar-nav">
-              <Nav className="ms-auto allign-items-center">
-                <Dropdown align="end">
-                        <Dropdown.Toggle as={Nav.Link} className="avatar-link p-0">
-                          <img
-                            src={user.avatar}
-                            alt="User Avatar"
-                            className="navbar-avatar"
-                          />
-                        </Dropdown.Toggle>
-                        <Dropdown.Menu>
-                          <Dropdown.Item onClick={handleToggleTheme}>
-                            Switch Theme
-                          </Dropdown.Item>
-                          { user?.roles?.includes('ROLE_ADMIN') && (
-                            <Dropdown.Item onClick={handleSwitchToAdmin}>
-                              Switch to Admin
-                            </Dropdown.Item>
-                            ) 
-                          }
-                          <Dropdown.Divider />
-                          <Dropdown.Item onClick={handleLogout}>
-                            Log Out
-                          </Dropdown.Item>
-                        </Dropdown.Menu>
-                      </Dropdown>
-              </Nav>
-            </Navbar.Collapse>
-          </Container>
-        </Navbar>
-
-        <main className="flex-grow-1 py-5">
-          <Container>
-            <Row>
-              <Col className="sticky-sidebar sidebar-scaled" md={3}>
-                <Card className="shadow-sm mb-4 text-center">
-                  <Card.Body>
-                    {user.avatar ? (
-                      <img
-                        src={user.avatar}
-                        alt="Avatar"
-                        className="rounded-circle mb-3"
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          objectFit: 'cover'
-                        }}
-                      />
-                    ) : (
-                      <div
-                        className="rounded-circle bg-primary text-white d-flex align-items-center justify-content-center mb-3 mx-auto"
-                        style={{
-                          width: '120px',
-                          height: '120px',
-                          fontSize: '40px'
-                        }}
-                      >
-                        {user.name
-                          ? user.name[0].toUpperCase()
-                          : 'U'}
-                      </div>
-                    )}
-                    <h5 className="mb-1">
-                      Hello, {user.name}!
-                    </h5>
-                    <p
-                      className="text-muted mb-0"
-                      style={{ fontSize: '0.9rem' }}
-                    >
-                      {user.email}
-                    </p>
-                  </Card.Body>
-                </Card>
-                <Card className="shadow-sm mb-4">
-                  <Card.Body>
-                    <h6 className="mb-3">Choose Your AI Model</h6>
-                    {uniqueAis.map(ai => (
-                      <DropdownButton
-                            key={ai}
-                            id={`dropdown-${ai}`}
-                            title={ai.charAt(0).toUpperCase() + ai.slice(1)}
-                            variant="outline-secondary"
-                            className="mb-2 ai-dropdown"
-                            onSelect={model => handleModelChange(ai, model)}
-                          >
-                        {aiModels
-                          .filter(m => m.ai === ai)
-                          .map(model => (
-                            <Dropdown.Item
-                              key={model.model}
-                              eventKey={model.model}
-                              active={
-                                user.aiModel.model === model.model
-                              }
-                            >
-                              {model.label}
-                            </Dropdown.Item>
-                          ))}
-                      </DropdownButton>
-                    ))}
-                  </Card.Body>
-                </Card>
-              </Col>
-
-              <Col md={9} className='sidebar-scaled'>
-                <div className="d-flex justify-content-between align-items-center mb-3">
-                  <h3
-                    className="mb-0"
-                    style={{
-                      fontWeight: '600',
-                      fontSize: '1.7rem'
-                    }}
-                  >
-                    Your AI Feedbacks 🧠
-                  </h3>
-                  <Link to="/create-pr">
-                    <Button
-                      variant="primary"
-                      className="me-3 fw-bold"
-                      style={{ minWidth: '140px' }}
-                    >
-                      Create PR
-                    </Button>
-                  </Link>
-                  {user?.aiModel && (
-                    <Card
-                      className="shadow-sm px-3 py-2"
-                      style={{ fontSize: '0.9rem' }}
-                    >
-                      <span className="text-muted">
-                        Current AI model:{' '}
-                        <strong>
-                          {user?.aiModel.ai}: {user?.aiModel.model}
-                        </strong>
-                      </span>
-                    </Card>
-                  )}
-                </div>
-
-                {Object.entries(grouped).length === 0 ? (
-                  <Alert variant="info">
-                    You haven't left any feedback yet.
-                  </Alert>
-                ) : (
-                  Object.entries(grouped).map(
-                    ([repo, items]) => (
-                      <div key={repo} className="mb-4">
-                        <hr className="my-3" />
-                        <h5
-                          className="mb-2 text-muted"
-                          style={{
-                            fontWeight: '500',
-                            fontSize: '1rem'
-                          }}
-                        >
-                          {repo}
-                        </h5>
-                        <div className="row g-3">
-                          {items.map(fb => (
-                            <div
-                              key={fb.id}
-                              className="col-12"
-                            >
-                              <Card className="shadow-sm">
-                                <Card.Body>
-                                  <Card.Title className="d-flex align-items-center">
-                                  <span className="text-primary me-2">
-                                    Pull Request #{fb.prId} – {user?.aiModel.model}
-                                  </span>
-                                  </Card.Title>
-                                  <ReactMarkdown
-                                    remarkPlugins={[remarkGfm]}
-                                  >
-                                    {fb.comment}
-                                  </ReactMarkdown>
-                                </Card.Body>
-                              </Card>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )
-                  )
-                )}
-              </Col>
-            </Row>
-          </Container>
-        </main>
-
-        <footer className="bg-dark text-white py-4">
-          <Container>
-            <div className="row">
-              <div className="col-md-4">
-                <h5>Code Review Hub</h5>
-                <p>
-                  Empowering developers through collaboration
-                  and code review.
-                </p>
-              </div>
-              <div className="col-md-4">
-                <h5>Quick Links</h5>
-                <ul className="list-unstyled">
-                  <li>
-                    <Link
-                      to="/about"
-                      className="text-white text-decoration-none"
-                    >
-                      About
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/contact"
-                      className="text-white text-decoration-none"
-                    >
-                      Contact
-                    </Link>
-                  </li>
-                  <li>
-                    <Link
-                      to="/faq"
-                      className="text-white text-decoration-none"
-                    >
-                      FAQ
-                    </Link>
-                  </li>
-                </ul>
-              </div>
-              <div className="col-md-4">
-                <h5>Connect</h5>
-                <ul className="list-unstyled">
-                  <li>
-                    <a
-                      href="#"
-                      className="text-white text-decoration-none"
-                    >
-                      Twitter
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="text-white text-decoration-none"
-                    >
-                      GitHub
-                    </a>
-                  </li>
-                  <li>
-                    <a
-                      href="#"
-                      className="text-white text-decoration-none"
-                    >
-                      LinkedIn
-                    </a>
-                  </li>
-                </ul>
-              </div>
-            </div>
-            <div className="text-center mt-3">
-              <p className="mb-0">
-                © {new Date().getFullYear()} Code Review Hub. All
-                rights reserved.
-              </p>
-            </div>
-          </Container>
-        </footer>
-        <style jsx>{
-          `@import url('https://fonts.googleapis.com/css2?family=Gabarito:wght@400..900&display=swap');
-
-            .sticky-sidebar {
-              position: sticky;
-              top: 118px; /* Adjust based on navbar height */
-              align-self: flex-start;
-            }
-
-            @media (max-width: 767.98px) {
-              .sticky-sidebar {
-                position: static;
-              }
-            }
-
-          .navbar-brand {
-                font-family: "Gabarito", sans-serif;
-                font-optical-sizing: auto;
-                font-weight: 400;
-                font-style: normal;
-                font-size: 27px;
-            }
-
-          .navbar-avatar {
-              width: 35px;
-              height: 35px;
-              border-radius: 50%;
-              object-fit: cover;
-              transition: opacity 0.2s ease;
-            }
-
-          .avatar-link:hover .navbar-avatar {
-            opacity: 2;
-          }
-
-          .ai-dropdown{
-            display:block;
-            width:100% !important;
-          }
-
-          .ai-dropdown > .btn{
-              width:100% !important;
-              text-allign:left;
-          }
-
-          .ai-dropdown .dropdown-menu{
-            width:100% !important;
-          }
-
-          .ai-chat-button {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            background: #0d6efd;
-            color: #fff;
-            border: none;
-            border-radius: 50%;
-            width: 56px;
-            height: 56px;
-            font-size: 24px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
-            cursor: pointer;
-            z-index: 1000;
-          }
-
-          .ai-chat-window {
-            position: fixed;
-            bottom: 90px;
-            right: 20px;
-            width: 300px;
-            height: 400px;
-            background: #fff;
-            border: 1px solid #ccc;
-            border-radius: 8px;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.2);
-            z-index: 1000;
-          }
-
-          .ai-chat-header {
-            background: #0d6efd;
-            color: #fff;
-            padding: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-          }
-
-          .ai-chat-body {
-            flex: 1;
-            padding: 8px;
-            overflow-y: auto;
-            background: #f9f9f9;
-          }
-
-          .chat-message {
-            margin-bottom: 6px;
-            padding: 6px 8px;
-            border-radius: 4px;
-          }
-          .chat-message.user {
-            background: #d1e7dd;
-            text-align: right;
-          }
-          .chat-message.ai {
-            background: #fff;
-            text-align: left;
-          }
-
-          .ai-chat-footer {
-            padding: 8px;
-            display: flex;
-            gap: 4px;
-            border-top: 1px solid #ddd;
-          }
-          .ai-chat-footer input {
-            flex: 1;
-            padding: 6px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-          }
-          .ai-chat-footer button {
-            padding: 6px 12px;
-            border: none;
-            background: #0d6efd;
-            color: #fff;
-            border-radius: 4px;
-            cursor: pointer;
-          }
-          `
-          }</style>
-
-          {/* —–––––––––––––––––––––––––––––––––––––––––––––– */}
-          {/* Floating AI Chat Button */}
-          <button
-            className="ai-chat-button"
-            onClick={() => setChatOpen(o => !o)}
-            title="Chat with AI"
+        {/* Navbar */}
+      <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
+        <Link to="/" className="text-2xl font-bold text-white tracking-wider hover:scale-105 transition-transform no-underline">
+          Code Review Hub
+        </Link>
+        <div className="relative">
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
           >
-            🤖
-          </button>
-
-          {/* Chat window */}
-          {chatOpen && (
-            <div className="ai-chat-window">
-              <div className="ai-chat-header">
-                <span>AI Assistant</span>
-                <button onClick={() => setChatOpen(false)}>✕</button>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center text-lg">
+                {user.name[0]}
               </div>
-              <div className="ai-chat-body">
-                {chatMessages.map((m, i) => (
-                  <div key={i} className={`chat-message ${m.sender}`}>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+            )}
+            <FaCaretDown className="text-white" />
+          </div>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-black/80 border border-white/10 rounded-lg shadow-lg z-50">
+              <button
+                onClick={handleSwitchToAdmin}
+                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-t-lg"
+              >
+                Switch to Admin
+              </button>
+              <button
+                onClick={() => setThemeOptionsOpen(!themeOptionsOpen)} // Updated to toggle theme options
+                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600"
+              >
+                Theme
+              </button>
+              {themeOptionsOpen && (
+                <div className="pl-4 py-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      checked={theme === 'light'}
+                      onChange={() => handleThemeSelect('light')}
+                      className="mr-2"
+                    />
+                    <FaSun className="mr-2 text-yellow-400" />
+                    Light
+                  </label>
+                  <label className="flex items-center mt-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      checked={theme === 'dark'}
+                      onChange={() => handleThemeSelect('dark')}
+                      className="mr-2"
+                    />
+                    <FaMoon className="mr-2 text-gray-300" />
+                    Dark
+                  </label>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-b-lg"
+              >
+                Logout
+              </button>
+            </div>
+          )}
+        </div>
+      </nav>
+
+    {/* Content */}
+    <main className="relative z-40 px-6 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* Sidebar */}
+      <div className="md:col-span-1 space-y-6">
+        <div className="bg-black/70 border border-white/10 rounded-2xl p-4 text-center">
+          {user.avatar ? (
+            <img src={user.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover mx-auto" />
+          ) : (
+            <div className="w-24 h-24 rounded-full bg-purple-600 flex items-center justify-center mx-auto text-3xl">
+              {user.name[0]}
+            </div>
+          )}
+          <h3 className="mt-4 text-xl font-semibold">Hello, {user.name}!</h3>
+          <p className="text-white/70 text-sm">{user.email}</p>
+        </div>
+
+        <div className="bg-black/70 border border-white/10 rounded-2xl p-4">
+          <h4 className="text-lg font-semibold mb-2">Choose Your AI Model</h4>
+          {uniqueAis.map(ai => (
+            <div key={ai} className="mb-3">
+              <label className="block mb-1 text-white/80">{ai}</label>
+              <select
+                className="w-full bg-black/80 text-white border border-white/20 rounded px-3 py-2"
+                onChange={e => handleModelChange(ai, e.target.value)}
+                value={aiModels.find(m => m.ai === ai && m.model === user.aiModel.model)?.model || ''}
+              >
+                {aiModels.filter(m => m.ai === ai).map(model => (
+                  <option key={model.model} value={model.model}>{model.label}</option>
+                ))}
+              </select>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div className="md:col-span-3">
+        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
+          <div className="flex gap-4 items-center">
+            <Link to="/create-pr" className="px-4 py-2 bg-purple-600 rounded-full hover:bg-purple-500 transition text-white font-medium">
+              Create PR
+            </Link>
+            <div className="bg-black/60 border border-white/10 rounded px-4 py-2 text-sm">
+              Current Model: <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
+            </div>
+          </div>
+        </div>
+
+        {Object.entries(grouped).length === 0 ? (
+          <div className="text-white/60">You haven't left any feedback yet.</div>
+        ) : (
+          Object.entries(grouped).map(([repo, items]) => (
+            <div key={repo} className="mb-6">
+              <h4 className="text-white/70 text-lg mb-2">{repo}</h4>
+              <div className="space-y-4">
+                {items.map(fb => (
+                  <div key={fb.id} className="bg-black/60 border border-white/10 rounded-2xl p-4">
+                    <h5 className="font-semibold text-purple-400 mb-2">Pull Request #{fb.prId} – {user.aiModel.model}</h5>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} className="text-white/90">
+                      {fb.comment}
+                    </ReactMarkdown>
                   </div>
                 ))}
               </div>
-              <div className="ai-chat-footer">
-                <input
-                  type="text"
-                  placeholder="Type a message…"
-                  value={chatInput}
-                  onChange={e => setChatInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && handleSend()}
-                />
-                <button onClick={handleSend}>Send</button>
-              </div>
             </div>
-          )}
+          ))
+        )}
       </div>
-    </>
-  );
+    </main>
+
+    {/* Floating AI Chat Button */}
+    <button
+      className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-purple-600 text-white text-xl flex items-center justify-center shadow-lg z-50"
+      onClick={() => setChatOpen(!chatOpen)}
+      title="Chat with AI"
+    >
+      <FaRobot size={24} />
+    </button>
+
+    {/* Chat window */}
+    {chatOpen && (
+      <div className="fixed bottom-24 right-5 w-80 h-96 bg-white text-black rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+        <div className="bg-purple-600 text-white px-4 py-2 flex justify-between items-center">
+          <span>AI Assistant</span>
+          <button onClick={() => setChatOpen(false)}>✕</button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100">
+          {chatMessages.map((m, i) => (
+            <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? 'bg-blue-100 text-right' : 'bg-white'}`}>
+              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+            </div>
+          ))}
+        </div>
+        <div className="border-t p-2 flex gap-2">
+          <input
+            type="text"
+            className="flex-1 border border-gray-300 rounded px-2 py-1"
+            placeholder="Type a message..."
+            value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSend()}
+          />
+          <button onClick={handleSend} className="px-3 bg-purple-600 text-white rounded">Send</button>
+        </div>
+      </div>
+    )}
+
+    {/* Footer */}
+    <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-12 sm:py-16">
+      <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
+        <div>
+          <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
+            Code Review Hub
+          </h5>
+          <p className="text-sm sm:text-base text-white/80">
+            Empowering developers through collaboration and code review.
+          </p>
+        </div>
+        <div className="sm:col-start-3">
+          <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
+          <div className="flex justify-center space-x-4 sm:space-x-6">
+            {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
+              <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
+                {platform}
+              </a>
+            ))}
+          </div>
+        </div>
+      </div>
+      <div className="text-center mt-8 sm:mt-12 text-white/50 text-xs sm:text-sm">
+        © {new Date().getFullYear()} Code Review Hub. All rights reserved.
+      </div>
+    </footer>
+
+    {/* Animations */}
+    <style jsx global>{`
+      @keyframes gradient-x {
+        0%, 100% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+      }
+      .animate-gradient-x {
+        background-size: 200% 200%;
+        animation: gradient-x 15s ease infinite;
+      }
+
+      a {
+        text-decoration: none;
+      }
+    `}</style>
+  </div>
+);
 }

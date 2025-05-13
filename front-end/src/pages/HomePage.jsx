@@ -73,9 +73,19 @@ export default function HomePage() {
           {user ? (
             <>
               <div className="flex items-center w-full sm:w-auto justify-between sm:justify-start space-x-4">
-                <Link to="/user" className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold hover:bg-purple-500 transition-all">
-                  {user.name[0].toUpperCase()}
-                </Link>
+              <Link to="/user" className="flex-shrink-0">
+                  {user.avatar ? (
+                    <img
+                      src={user.avatar}
+                      alt="User avatar"
+                      className="w-10 h-10 sm:w-12 sm:h-12 rounded-full object-cover border-2 border-purple-600 hover:border-purple-400 transition-colors"
+                    />
+                  ) : (
+                    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-purple-600 text-white rounded-full flex items-center justify-center text-lg sm:text-xl font-bold hover:bg-purple-500 transition-all">
+                      {user.name[0].toUpperCase()}
+                    </div>
+                  )}
+              </Link>
                 <button onClick={handleLogout} className="w-full sm:w-auto px-4 py-2 text-white border border-purple-600 rounded-full hover:bg-purple-600 transition-colors">
                   Logout
                 </button>
@@ -164,43 +174,32 @@ function reviewCode(pullRequest) {
       </section>
 
       {/* Footer */}
-      <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-12 sm:py-16">
-        <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
-          <div>
-            <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
-              Code Review Hub
-            </h5>
-            <p className="text-sm sm:text-base text-white/80">
-              Empowering developers through collaboration and code review.
-            </p>
-          </div>
-          <div>
-            <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Quick Links</h5>
-            <ul className="space-y-3">
-              {['About', 'Contact', 'FAQ'].map((link, idx) => (
-                <li key={idx}>
-                  <Link to={`/${link.toLowerCase()}`} className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
-                    {link}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
-            <div className="flex space-x-4 sm:space-x-6">
-              {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
-                <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
-                  {platform}
-                </a>
-              ))}
+        <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-12 sm:py-16">
+            <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
+            <div>
+              <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
+                Code Review Hub
+              </h5>
+              <p className="text-sm sm:text-base text-white/80">
+                Empowering developers through collaboration and code review.
+              </p>
+            </div>      
+            <div className="sm:col-start-3">
+              <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
+              <div className="flex justify-center space-x-4 sm:space-x-6">
+                {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
+                  <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
+                    {platform}
+                  </a>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
-        <div className="text-center mt-8 sm:mt-12 text-white/50 text-xs sm:text-sm">
-          © {new Date().getFullYear()} Code Review Hub. All rights reserved.
-        </div>
-      </footer>
+          <div className="text-center mt-8 sm:mt-12 text-white/50 text-xs sm:text-sm">
+            © {new Date().getFullYear()} Code Review Hub. All rights reserved.
+          </div>
+        </footer>
+
 
       {/* Custom Tailwind Animations */}
       <style jsx global>{`
@@ -211,6 +210,10 @@ function reviewCode(pullRequest) {
         .animate-gradient-x {
           background-size: 200% 200%;
           animation: gradient-x 15s ease infinite;
+        }
+
+        a {
+          text-decoration: none;
         }
       `}</style>
     </div>

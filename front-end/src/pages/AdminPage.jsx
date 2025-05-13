@@ -2,13 +2,8 @@ import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { getAdminUsers, getAdminFeedbacksByUser, deleteFeedback } from '../api/admin';
-import {
-  Navbar, Nav, Container, Card,
-  Spinner, Alert, Row, Col,
-  ListGroup, Image, Button
-} from 'react-bootstrap';
 import { Link, useNavigate } from 'react-router-dom';
-import 'bootstrap/dist/css/bootstrap.min.css';
+import { FaCaretDown } from 'react-icons/fa';
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
@@ -65,143 +60,168 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center min-vh-100">
-        <Spinner animation="border" variant="primary" />
-        <span className="ms-2">Loading Admin Panel...</span>
-      </div>
+      <div className="min-h-screen flex items-center justify-center text-white text-xl">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+        <span className="ml-2">Loading Admin Panel...</span>
+    </div>
     );
   }
 
   if (error) {
     return (
-      <Alert variant="danger" className="m-4">
-        <Alert.Heading>Error</Alert.Heading>
-        <p>{error}</p>
-        <Link to="/user" className="btn btn-primary">Return to User Page</Link>
-      </Alert>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-red-900/70 border border-red-500 rounded-2xl p-6 text-white">
+          <h3 className="text-lg font-semibold">Error</h3>
+          <p className="mt-2">{error}</p>
+          <Link to="/user" className="mt-4 inline-block px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition">
+            Return to User Page
+          </Link>
+        </div>
+      </div>
     );
   }
 
   return (
-    <div className="d-flex flex-column min-vh-100">
-      <Navbar bg="dark" variant="dark" expand="lg" sticky="top">
-        <Container>
-          <Navbar.Brand as={Link} to="/">Code Review Hub - Admin</Navbar.Brand>
-          <Navbar.Collapse className="justify-content-end">
-            <Nav>
-              <Nav.Link onClick={handleLogout}>Log Out</Nav.Link>
-            </Nav>
-          </Navbar.Collapse>
-        </Container>
-      </Navbar>
+    <div className="relative min-h-screen bg-black text-white overflow-hidden font-['Gabarito'] flex flex-col">
+      {/* Background */}
+      <div className="absolute inset-0 z-0 opacity-30">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+      </div>
 
-      <main className="flex-grow-1 py-4">
-        <Container fluid>
-          <Row>
-            <Col md={3} className="border-end">
-              <h5 className="mb-3">All Users</h5>
-              <ListGroup>
+      {/* Navbar */}
+      <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
+        <Link to="/" className="text-2xl font-bold text-white tracking-wider hover:scale-105 transition-transform no-underline">
+          Code Review Hub - Admin
+        </Link>
+        <div className="relative">
+          <span
+            className="text-white/80 hover:text-white transition-colors cursor-pointer"
+            onClick={handleLogout}
+          >
+            Log Out
+          </span>
+        </div>
+      </nav>
+
+      <main className="relative z-40 px-6 py-6 flex-grow">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="md:col-span-1 space-y-6">
+            <div className="bg-black/70 border border-white/10 rounded-2xl p-4">
+              <h5 className="mb-3 text-lg font-semibold">All Users</h5>
+              <div className="space-y-2">
                 {users.map(u => (
-                  <ListGroup.Item
+                  <div
                     key={u.username}
-                    action
-                    active={selectedUser?.username === u.username}
+                    className={`p-2 rounded-lg cursor-pointer flex items-center ${selectedUser?.username === u.username ? 'bg-purple-600/30' : 'hover:bg-black/40'}`}
                     onClick={() => handleUserSelect(u)}
-                    className="d-flex align-items-center"
                   >
                     {u.avatar ? (
-                      <Image
+                      <img
                         src={u.avatar}
-                        roundedCircle
-                        width={30}
-                        height={30}
-                        className="me-2"
+                        alt="Avatar"
+                        className="w-8 h-8 rounded-full object-cover mr-2"
                         onError={(e) => (e.target.src = '')}
                       />
                     ) : (
                       <div
-                        className="bg-primary text-white d-flex align-items-center justify-content-center me-2 rounded-circle"
-                        style={{ width: '30px', height: '30px', fontSize: '14px' }}
+                        className="bg-purple-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm"
                       >
                         {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                       </div>
                     )}
                     <span>{u.name || u.username}</span>
-                  </ListGroup.Item>
+                  </div>
                 ))}
-              </ListGroup>
-            </Col>
+              </div>
+            </div>
+          </div>
 
-            <Col md={9}>
-              {!selectedUser ? (
-                <div className="text-center text-muted mt-5">
-                  Select a user to view details and feedbacks.
-                </div>
-              ) : (
-                <>
-                  <Card className="mb-4">
-                    <Card.Body className="d-flex align-items-center">
-                      {selectedUser.avatar ? (
-                        <Image
-                          src={selectedUser.avatar}
-                          roundedCircle
-                          width={80}
-                          height={80}
-                          className="me-3"
-                          onError={(e) => (e.target.src = '')}
-                        />
-                      ) : (
-                        <div
-                          className="bg-primary text-white d-flex align-items-center justify-content-center me-3"
-                          style={{ width: '80px', height: '80px', borderRadius: '50%', fontSize: '32px' }}
-                        >
-                          {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                      )}
-                      <div>
-                        <h5 className="mb-1">{selectedUser.name || selectedUser.username}</h5>
-                        <p className="mb-0 text-muted" style={{ fontSize: '0.9rem' }}>
-                          @{selectedUser.username} • {selectedUser.email}
-                        </p>
-                      </div>
-                    </Card.Body>
-                  </Card>
-
-                  <h5 className="mb-3">Feedbacks</h5>
-                  {loadingFeedbacks ? (
-                    <Spinner animation="border" />
-                  ) : feedbacks.length === 0 ? (
-                    <Alert variant="info">No feedbacks for this user.</Alert>
+          <div className="md:col-span-3">
+            {!selectedUser ? (
+              <div className="text-center text-white/60 mt-10">
+                Select a user to view details and feedbacks.
+              </div>
+            ) : (
+              <>
+                <div className="bg-black/70 border border-white/10 rounded-2xl p-4 mb-6 flex items-center">
+                  {selectedUser.avatar ? (
+                    <img
+                      src={selectedUser.avatar}
+                      alt="Avatar"
+                      className="w-20 h-20 rounded-full object-cover mr-4"
+                      onError={(e) => (e.target.src = '')}
+                    />
                   ) : (
-                    feedbacks.map(fb => (
-                      <Card key={fb.id} className="mb-3 shadow-sm">
-                        <Card.Body>
-                          <Card.Title>
-                            PR #{fb.prId} • <span className="text-primary">{fb.repoFullName}</span>
-                          </Card.Title>
-                          <ReactMarkdown remarkPlugins={[remarkGfm]}>{fb.comment}</ReactMarkdown>
-                          <Button
-                            variant="outline-danger"
-                            size="sm"
-                            className="mt-2"
-                            onClick={() => deleteFeedback(fb.id).then(() => handleUserSelect(selectedUser))}
-                          >
-                            Delete
-                          </Button>
-                        </Card.Body>
-                      </Card>
-                    ))
+                    <div
+                      className="bg-purple-600 text-white w-20 h-20 rounded-full flex items-center justify-center mr-4 text-2xl"
+                    >
+                      {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
+                    </div>
                   )}
-                </>
-              )}
-            </Col>
-          </Row>
-        </Container>
+                  <div>
+                    <h5 className="mb-1 text-xl font-semibold">{selectedUser.name || selectedUser.username}</h5>
+                    <p className="text-white/70 text-sm">@{selectedUser.username} • {selectedUser.email}</p>
+                  </div>
+                </div>
+
+                <h5 className="mb-3 text-lg font-semibold">Feedbacks</h5>
+                {loadingFeedbacks ? (
+                  <div className="flex justify-center">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+                  </div>
+                ) : feedbacks.length === 0 ? (
+                  <div className="bg-black/60 border border-white/10 rounded-2xl p-4 text-white/60">
+                    No feedbacks for this user.
+                  </div>
+                ) : (
+                  feedbacks.map(fb => (
+                    <div key={fb.id} className="bg-black/60 border border-white/10 rounded-2xl p-4 mb-3">
+                      <h5 className="font-semibold text-purple-400 mb-2">
+                        PR #{fb.prId} • <span className="text-white">{fb.repoFullName}</span>
+                      </h5>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} className="text-white/90">
+                        {fb.comment}
+                      </ReactMarkdown>
+                      <button
+                        className="mt-2 px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-500 transition"
+                        onClick={() => deleteFeedback(fb.id).then(() => handleUserSelect(selectedUser))}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  ))
+                )}
+              </>
+            )}
+          </div>
+        </div>
       </main>
 
-      <footer className="bg-light text-center py-3">
-        © {new Date().getFullYear()} Code Review Hub. Admin Panel
+      {/* Footer */}
+      <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-6 sm:py-8">
+        <div className="text-center mt-4 sm:mt-6 text-white/50 text-xs sm:text-sm">
+          © {new Date().getFullYear()} Code Review Hub. All rights reserved.
+        </div>
       </footer>
+
+      {/* Animations */}
+      <style jsx global>{`
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: gradient-x 15s ease infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+      `}</style>
     </div>
   );
 }
