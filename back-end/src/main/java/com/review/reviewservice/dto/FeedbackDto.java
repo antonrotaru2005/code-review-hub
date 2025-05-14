@@ -7,6 +7,7 @@ public record FeedbackDto(
         String repoFullName,
         Long prId,
         String comment,
+        String model,
         LocalDateTime createdAt,
         Long userId,
         String username

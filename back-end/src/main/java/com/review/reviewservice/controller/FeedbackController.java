@@ -19,17 +19,6 @@ public class FeedbackController {
         this.feedbackService = feedbackService;
     }
 
-    @PostMapping
-    public ResponseEntity<FeedbackDto> create(@RequestBody FeedbackDto request) {
-        FeedbackDto saved = feedbackService.save(
-                request.prId(),
-                request.repoFullName(),
-                request.username(),
-                request.comment()
-        );
-        return ResponseEntity.ok(saved);
-    }
-
     @GetMapping("/pr/{prId}")
     public ResponseEntity<List<FeedbackDto>> byPr(@PathVariable Long prId) {
         return ResponseEntity.ok(feedbackService.getByPr(prId));

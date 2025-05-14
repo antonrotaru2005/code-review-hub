@@ -105,7 +105,7 @@ public class WebhookController {
             bitbucketService.postCommentToPullRequest(payload, feedback);
 
             // Save feedback to database
-            feedbackService.save(prId, uuid, feedback, repoFullName);
+            feedbackService.save(prId, uuid, feedback, model, repoFullName);
 
             messagingTemplate.convertAndSend(
                     "/topic/feedback/" + username,

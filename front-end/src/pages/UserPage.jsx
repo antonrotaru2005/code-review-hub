@@ -5,6 +5,8 @@ import { getUserInfo, getUserFeedbacks } from '../api/user';
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaCaretDown, FaSun, FaMoon } from 'react-icons/fa';
+import { Card, DropdownButton, Dropdown } from 'react-bootstrap';
+
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
@@ -20,10 +22,10 @@ export default function UserPage() {
     }
   });
   const [chatInput, setChatInput] = useState('');
-  const [dropdownOpen, setDropdownOpen] = useState(false); // New state for dropdown
-  const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
   const [theme, setTheme] = useState('dark');
+  const navigate = useNavigate();
 
   const aiModels = [
     { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini', label: 'GPT-4o-mini' },
@@ -54,7 +56,11 @@ export default function UserPage() {
         const fbs = await getUserFeedbacks(u.username);
         setFeedbacks(fbs);
       } catch (e) {
-        setError(e.message);
+        if (e.message.includes('401') || e.message.includes('403') || e.message.includes('Failed to fetch')) {
+          setError('You are not logged in. Please log in or sign up to access this page.');
+        } else {
+          setError(e.message);
+        }
       } finally {
         setLoading(false);
       }
@@ -65,7 +71,7 @@ export default function UserPage() {
   useEffect(() => {
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
     window.localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
-  }, [chatMessages]);
+  }, [chatMessages, theme]);
 
   const handleSend = async () => {
     const text = chatInput.trim();
@@ -95,10 +101,9 @@ export default function UserPage() {
   const handleSwitchToAdmin = () => navigate('/admin');
   const handleToggleTheme = () => setThemeOptionsOpen(!themeOptionsOpen);
   const handleThemeSelect = (selectedTheme) => {
-  setTheme(selectedTheme);
-  setThemeOptionsOpen(false);
-  document.body.className = selectedTheme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
-};
+    setTheme(selectedTheme);
+    setThemeOptionsOpen(false);
+  };
 
   const handleModelChange = async (ai, model) => {
     try {
@@ -110,21 +115,46 @@ export default function UserPage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-white text-xl">Loading...</div>;
-  if (error) return <div className="min-h-screen flex items-center justify-center text-white text-xl">{error}</div>;
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-white text-xl">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+        <span className="ml-2">Loading User Page...</span>
+    </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="bg-black/70 border border-white/10 rounded-2xl p-6 text-white text-center">
+          <h3 className="text-lg font-semibold mb-4">Authentication Required</h3>
+          <p className="mb-4">{error}</p>
+          <div className="space-x-4">
+            <Link to="/login" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+              Log In
+            </Link>
+            <Link to="/signup" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+              Sign Up
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const grouped = groupByRepo(feedbacks);
   const uniqueAis = [...new Set(aiModels.map(m => m.ai))];
 
-return (
-  <div className="relative min-h-screen bg-black text-white overflow-hidden font-['Gabarito']">
-    {/* Background */}
-    <div className="absolute inset-0 z-0 opacity-30">
-      <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
-      <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
-    </div>
+  return (
+    <div className="relative min-h-screen bg-black text-white overflow-hidden font-['Gabarito'] flex flex-col">
+      {/* Background */}
+      <div className="absolute inset-0 z-0 opacity-30">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+      </div>
 
-        {/* Navbar */}
+      {/* Navbar */}
       <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
         <Link to="/" className="text-2xl font-bold text-white tracking-wider hover:scale-105 transition-transform no-underline">
           Code Review Hub
@@ -145,15 +175,17 @@ return (
           </div>
           {dropdownOpen && (
             <div className="absolute right-0 mt-2 w-48 bg-black/80 border border-white/10 rounded-lg shadow-lg z-50">
+              {user?.roles?.includes('ROLE_ADMIN') && (
+                <button
+                  onClick={handleSwitchToAdmin}
+                  className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-t-lg"
+                >
+                  Switch to Admin
+                </button>
+              )}
               <button
-                onClick={handleSwitchToAdmin}
-                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-t-lg"
-              >
-                Switch to Admin
-              </button>
-              <button
-                onClick={() => setThemeOptionsOpen(!themeOptionsOpen)} // Updated to toggle theme options
-                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600"
+                onClick={handleToggleTheme}
+                className={`w-full text-left px-4 py-2 text-white hover:bg-purple-600 ${!user?.roles?.includes('ROLE_ADMIN') ? 'rounded-t-lg' : ''}`}
               >
                 Theme
               </button>
@@ -194,156 +226,211 @@ return (
         </div>
       </nav>
 
-    {/* Content */}
-    <main className="relative z-40 px-6 py-6 grid grid-cols-1 md:grid-cols-4 gap-6">
-      {/* Sidebar */}
-      <div className="md:col-span-1 space-y-6">
-        <div className="bg-black/70 border border-white/10 rounded-2xl p-4 text-center">
-          {user.avatar ? (
-            <img src={user.avatar} alt="Avatar" className="w-24 h-24 rounded-full object-cover mx-auto" />
-          ) : (
-            <div className="w-24 h-24 rounded-full bg-purple-600 flex items-center justify-center mx-auto text-3xl">
-              {user.name[0]}
-            </div>
-          )}
-          <h3 className="mt-4 text-xl font-semibold">Hello, {user.name}!</h3>
-          <p className="text-white/70 text-sm">{user.email}</p>
-        </div>
-
-        <div className="bg-black/70 border border-white/10 rounded-2xl p-4">
-          <h4 className="text-lg font-semibold mb-2">Choose Your AI Model</h4>
-          {uniqueAis.map(ai => (
-            <div key={ai} className="mb-3">
-              <label className="block mb-1 text-white/80">{ai}</label>
-              <select
-                className="w-full bg-black/80 text-white border border-white/20 rounded px-3 py-2"
-                onChange={e => handleModelChange(ai, e.target.value)}
-                value={aiModels.find(m => m.ai === ai && m.model === user.aiModel.model)?.model || ''}
-              >
-                {aiModels.filter(m => m.ai === ai).map(model => (
-                  <option key={model.model} value={model.model}>{model.label}</option>
-                ))}
-              </select>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div className="md:col-span-3">
-        <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
-          <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
-          <div className="flex gap-4 items-center">
-            <Link to="/create-pr" className="px-4 py-2 bg-purple-600 rounded-full hover:bg-purple-500 transition text-white font-medium">
-              Create PR
-            </Link>
-            <div className="bg-black/60 border border-white/10 rounded px-4 py-2 text-sm">
-              Current Model: <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
-            </div>
-          </div>
-        </div>
-
-        {Object.entries(grouped).length === 0 ? (
-          <div className="text-white/60">You haven't left any feedback yet.</div>
-        ) : (
-          Object.entries(grouped).map(([repo, items]) => (
-            <div key={repo} className="mb-6">
-              <h4 className="text-white/70 text-lg mb-2">{repo}</h4>
-              <div className="space-y-4">
-                {items.map(fb => (
-                  <div key={fb.id} className="bg-black/60 border border-white/10 rounded-2xl p-4">
-                    <h5 className="font-semibold text-purple-400 mb-2">Pull Request #{fb.prId} – {user.aiModel.model}</h5>
-                    <ReactMarkdown remarkPlugins={[remarkGfm]} className="text-white/90">
-                      {fb.comment}
-                    </ReactMarkdown>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))
-        )}
-      </div>
-    </main>
-
-    {/* Floating AI Chat Button */}
-    <button
-      className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-purple-600 text-white text-xl flex items-center justify-center shadow-lg z-50"
-      onClick={() => setChatOpen(!chatOpen)}
-      title="Chat with AI"
-    >
-      <FaRobot size={24} />
-    </button>
-
-    {/* Chat window */}
-    {chatOpen && (
-      <div className="fixed bottom-24 right-5 w-80 h-96 bg-white text-black rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
-        <div className="bg-purple-600 text-white px-4 py-2 flex justify-between items-center">
-          <span>AI Assistant</span>
-          <button onClick={() => setChatOpen(false)}>✕</button>
-        </div>
-        <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100">
-          {chatMessages.map((m, i) => (
-            <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? 'bg-blue-100 text-right' : 'bg-white'}`}>
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
-            </div>
-          ))}
-        </div>
-        <div className="border-t p-2 flex gap-2">
-          <input
-            type="text"
-            className="flex-1 border border-gray-300 rounded px-2 py-1"
-            placeholder="Type a message..."
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && handleSend()}
-          />
-          <button onClick={handleSend} className="px-3 bg-purple-600 text-white rounded">Send</button>
-        </div>
+      <main className="relative z-40 px-6 py-6 flex-grow">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          {/* Sidebar (stacked on mobile/tablet, sidebar on desktop) */}
+{/* Sidebar (stacked on mobile/tablet, sidebar on desktop) */}
+<div className="lg:col-span-1 flex flex-col gap-6">
+  {/* Profile card */}
+  <div className="relative rounded-2xl border border-white/10 bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60 backdrop-blur-md shadow-xl p-6 text-center">
+    {user.avatar ? (
+      <img
+        src={user.avatar}
+        alt="Avatar"
+        className="w-24 h-24 rounded-full object-cover mx-auto ring-4 ring-purple-500/40"
+      />
+    ) : (
+      <div className="w-24 h-24 rounded-full bg-purple-600/80 flex items-center justify-center mx-auto text-3xl font-bold shadow-md ring-4 ring-purple-500/40">
+        {user.name[0]}
       </div>
     )}
+    <h3 className="mt-4 text-2xl font-bold tracking-wide">
+      Hello, {user.name}!
+    </h3>
+    <p className="text-white/70 text-sm">{user.email}</p>
+  </div>
 
-    {/* Footer */}
-    <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-12 sm:py-16">
-      <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
-        <div>
-          <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
-            Code Review Hub
-          </h5>
-          <p className="text-sm sm:text-base text-white/80">
-            Empowering developers through collaboration and code review.
-          </p>
-        </div>
-        <div className="sm:col-start-3">
-          <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
-          <div className="flex justify-center space-x-4 sm:space-x-6">
-            {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
-              <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
-                {platform}
-              </a>
+  {/* AI model picker */}
+        <div className="relative rounded-2xl border border-white/10 bg-trasnparent from-purple-900/60 via-indigo-900/60 to-blue-900/60 backdrop-blur-md shadow-xl p-6 flex flex-col">
+          <h4 className="text-lg font-semibold mb-4 text-white text-center">
+            Choose Your AI Model
+          </h4>
+
+          <div className="flex flex-col gap-3">
+            {uniqueAis.map(ai => (
+              <DropdownButton
+                key={ai}
+                id={`dropdown-${ai}`}
+                title={ai.charAt(0).toUpperCase() + ai.slice(1)}
+                variant="secondary"
+                className="w-full ai-dropdown"
+                onSelect={model => handleModelChange(ai, model)}
+              >
+                {aiModels
+                  .filter(m => m.ai === ai)
+                  .map(model => (
+                    <Dropdown.Item
+                      key={model.model}
+                      eventKey={model.model}
+                      active={user.aiModel.model === model.model}
+                      className="text-white"
+                    >
+                      {model.label}
+                    </Dropdown.Item>
+                  ))}
+              </DropdownButton>
             ))}
           </div>
         </div>
       </div>
-      <div className="text-center mt-8 sm:mt-12 text-white/50 text-xs sm:text-sm">
-        © {new Date().getFullYear()} Code Review Hub. All rights reserved.
-      </div>
-    </footer>
 
-    {/* Animations */}
-    <style jsx global>{`
-      @keyframes gradient-x {
-        0%, 100% { background-position: 0% 50%; }
-        50% { background-position: 100% 50%; }
-      }
-      .animate-gradient-x {
-        background-size: 200% 200%;
-        animation: gradient-x 15s ease infinite;
-      }
+          {/* Main content */}
+          <div className="lg:col-span-3">
+            <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
+              <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
+              <div className="flex gap-4 items-center">
+                <Link to="/create-pr" className="px-4 py-2 bg-purple-600 rounded-full hover:bg-purple-500 transition text-white font-medium no-underline">
+                  Create PR
+                </Link>
+                <div className="bg-black/60 border border-white/10 rounded px-4 py-2 text-sm">
+                  Current Model: <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
+                </div>
+              </div>
+            </div>
 
-      a {
-        text-decoration: none;
+            {Object.entries(grouped).length === 0 ? (
+              <div className="text-white/60">You haven't left any feedback yet.</div>
+            ) : (
+              Object.entries(grouped).map(([repo, items]) => (
+                <div key={repo} className="mb-6">
+                  <h4 className="text-white/70 text-lg mb-2">{repo}</h4>
+                  <div className="space-y-4">
+                    {items.map(fb => (
+                      <div key={fb.id} className="bg-black/60 border border-white/10 rounded-2xl p-4">
+                        <h5 className="font-semibold text-purple-400 mb-2">Pull Request #{fb.prId} – {fb.model}</h5>
+                        <ReactMarkdown
+                          remarkPlugins={[remarkGfm]}
+                          components={{ p: ({ node, ...props }) => <p className="text-white/90" {...props} /> }}
+                        >
+                          {fb.comment}
+                        </ReactMarkdown>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </main>
+
+      {/* Floating AI Chat Button */}
+      <button
+        className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-purple-600 text-white text-xl flex items-center justify-center shadow-lg z-50"
+        onClick={() => setChatOpen(!chatOpen)}
+        title="Chat with AI"
+      >
+        <FaRobot size={24} />
+      </button>
+
+      {/* Chat window */}
+      {chatOpen && (
+        <div className="fixed bottom-24 right-5 w-80 h-96 bg-white text-black rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+          <div className="bg-purple-600 text-white px-4 py-2 flex justify-between items-center">
+            <span>AI Assistant</span>
+            <button onClick={() => setChatOpen(false)}>✕</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100">
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? 'bg-blue-100 text-right' : 'bg-white'}`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }) => <p className="text-black" {...props} /> }}>
+                  {m.text}
+                </ReactMarkdown>
+              </div>
+            ))}
+          </div>
+          <div className="border-t p-2 flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border border-gray-300 rounded px-2 py-1"
+              placeholder="Type a message..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+            />
+            <button onClick={handleSend} className="px-3 bg-purple-600 text-white rounded">Send</button>
+          </div>
+        </div>
+      )}
+
+      {/* Footer */}
+      <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-6 sm:py-8">
+        <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
+          <div>
+            <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
+              Code Review Hub
+            </h5>
+            <p className="text-sm sm:text-base text-white/80">
+              Empowering developers through collaboration and code review.
+            </p>
+          </div>
+          <div className="sm:col-start-3">
+            <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
+            <div className="flex justify-center space-x-4 sm:space-x-6">
+              {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
+                <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
+                  {platform}
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="text-center mt-4 sm:mt-6 text-white/50 text-xs sm:text-sm">
+          © {new Date().getFullYear()} Code Review Hub. All rights reserved.
+        </div>
+      </footer>
+
+      {/* Animations */}
+      <style jsx global>{`
+        @keyframes gradient-x {
+          0%, 100% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+        }
+        .animate-gradient-x {
+          background-size: 200% 200%;
+          animation: gradient-x 15s ease infinite;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+          animation: spin 1s linear infinite;
+        }
+
+        .ai-dropdown .btn {
+        background-color: transparent;
+        border-color: rgba(255, 255, 255, 0.2);
+        color: white;
+        width: 100%;
       }
-    `}</style>
-  </div>
-);
+        
+      .ai-dropdown .btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      .ai-dropdown .dropdown-menu {
+        background-color: rgba(0, 0, 0, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .ai-dropdown .dropdown-item {
+        color: white;
+      }
+      .ai-dropdown .dropdown-item:hover {
+        background-color: rgba(147, 51, 234, 0.5); /* Purple hover effect */
+      }
+      .ai-dropdown .dropdown-item.active {
+        background-color: rgba(147, 51, 234, 0.7); /* Purple active state */
+      }
+      `}</style>
+    </div>
+  );
 }
