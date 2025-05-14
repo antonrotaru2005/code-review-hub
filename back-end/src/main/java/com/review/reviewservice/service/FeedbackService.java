@@ -38,13 +38,14 @@ public class FeedbackService {
         }
     }
 
-    public FeedbackDto save(Long prId, String uuid, String comment, String repoFullName) {
+    public FeedbackDto save(Long prId, String uuid, String comment, String model, String repoFullName) {
         User user = userRepository.findByBitbucketUuid(uuid)
                 .orElseThrow(() -> new IllegalArgumentException("User not found: " + uuid));
 
         Feedback f = new Feedback();
         f.setPrId(prId);
         f.setComment(comment);
+        f.setModel(model);
         f.setRepoFullName(repoFullName);
         f.setUser(user);
         return toDto(feedbackRepository.save(f));
@@ -69,6 +70,7 @@ public class FeedbackService {
                 f.getRepoFullName(),
                 f.getPrId(),
                 f.getComment(),
+                f.getModel(),
                 f.getCreatedAt(),
                 f.getUser().getId(),
                 f.getUser().getUsername()

@@ -25,31 +25,34 @@ export default function LoginPage() {
       </div>
 
       {/* Navbar */}
-      <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
-        <Link to="/" className="text-2xl sm:text-3xl font-bold text-white tracking-wider hover:scale-105 transition-transform">
-          Code Review Hub
-        </Link>
-        <div className="flex space-x-4">
-          <Link
-            to="/login"
-            className="px-6 py-3 text-white/80 hover:text-white transition-colors rounded-full text-base sm:text-lg"
-          >
-            Login
-          </Link>
-          <Link
-            to="/signup"
-            className="px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition-all shadow-lg hover:shadow-purple-500/50 text-base sm:text-lg"
-          >
-            Sign Up
-          </Link>
-        </div>
-      </nav>
+          <nav className="relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6">
+            <Link
+              to="/"
+              className="text-2xl sm:text-3xl font-bold text-white tracking-wider hover:scale-105 transition-transform"
+            >
+              Code Review Hub
+            </Link>
+            <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
+              <Link
+                to="/login"
+                className="w-full sm:w-auto text-center px-2 py-2 text-white/80 hover:text-white transition-colors rounded-full text-sm sm:text-base"
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className="w-full sm:w-auto px-6 py-3 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition-all"
+              >
+                Sign Up
+              </Link>
+            </div>
+          </nav>
 
       {/* Main Login Card */}
       <main className="relative z-40 flex flex-col items-center justify-center px-4 sm:px-8 py-20">
         <div className="bg-black/70 backdrop-blur-lg border border-white/10 rounded-3xl p-8 sm:p-10 shadow-2xl w-full max-w-md">
           <h2 className="text-center text-3xl sm:text-4xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
-            Login to Code Review Hub
+            Login
           </h2>
           {userNotFound && (
             <div className="mb-4 p-4 bg-red-700 text-red-100 rounded-lg text-center">
@@ -95,45 +98,31 @@ export default function LoginPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-8">
-        <div className="container mx-auto px-6 grid grid-cols-1 sm:grid-cols-3 gap-8">
-          <div>
-            <h5 className="text-lg sm:text-xl font-bold mb-2 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
-              Code Review Hub
-            </h5>
-            <p className="text-white/80 text-sm">
-              Empowering developers through collaboration and code review.
-            </p>
-          </div>
-          <div>
-            <h5 className="text-lg sm:text-xl font-bold mb-2 text-white">Quick Links</h5>
-            <ul className="space-y-2 text-sm text-white/80">
-              {['About', 'Contact', 'FAQ'].map((link, idx) => (
-                <li key={idx}>
-                  <Link to={`/${link.toLowerCase()}`} className="hover:text-white transition-colors">
-                    {link}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div>
-            <h5 className="text-lg sm:text-xl font-bold mb-2 text-white">Connect</h5>
-            <ul className="flex space-x-4 text-white/80">
-              {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
-                <li key={idx}>
-                  <a href="#" className="hover:text-white transition-colors text-sm">
+        <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-12 sm:py-16">
+            <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
+            <div>
+              <h5 className="text-xl sm:text-2xl font-bold mb-4 sm:mb-6 text-transparent bg-clip-text bg-gradient-to-r from-purple-400 to-blue-500">
+                Code Review Hub
+              </h5>
+              <p className="text-sm sm:text-base text-white/80">
+                Empowering developers through collaboration and code review.
+              </p>
+            </div>      
+            <div className="sm:col-start-3">
+              <h5 className="text-lg sm:text-xl font-bold mb-4 sm:mb-6 text-white">Connect</h5>
+              <div className="flex justify-center space-x-4 sm:space-x-6">
+                {['Twitter', 'GitHub', 'LinkedIn'].map((platform, idx) => (
+                  <a key={idx} href="#" className="text-white/60 hover:text-white transition-colors text-sm sm:text-base">
                     {platform}
                   </a>
-                </li>
-              ))}
-            </ul>
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-        <div className="text-center mt-6 text-white/50 text-xs">
-          © {new Date().getFullYear()} Code Review Hub. All rights reserved.
-        </div>
-      </footer>
+          <div className="text-center mt-8 sm:mt-12 text-white/50 text-xs sm:text-sm">
+            © {new Date().getFullYear()} Code Review Hub. All rights reserved.
+          </div>
+        </footer>
 
       {/* Animations */}
       <style jsx global>{`
@@ -144,7 +133,12 @@ export default function LoginPage() {
         .animate-gradient-x {
           background-size: 200% 200%;
           animation: gradient-x 15s ease infinite;
+      }
+
+        a {
+          text-decoration: none;
         }
+        
       `}</style>
     </div>
   );

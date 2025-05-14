@@ -1,30 +1,65 @@
 import React, { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { sendChat } from '../api/chat';
+import { getUserInfo } from '../api/user';
 import { getAdminUsers, getAdminFeedbacksByUser, deleteFeedback } from '../api/admin';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaCaretDown } from 'react-icons/fa';
+import { FaRobot, FaSun, FaMoon, FaCaretDown } from 'react-icons/fa';
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [user, setUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
   const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState(() => {
+    try {
+      const saved = window.localStorage.getItem('chatMessages');
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [chatInput, setChatInput] = useState('');
+  const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
+  const [theme, setTheme] = useState('dark');
+
+  const handleThemeSelect = (selectedTheme) => {
+    setTheme(selectedTheme);
+    setThemeOptionsOpen(false);
+  };
+
+  const handleSwitchToUser = () => navigate('/user');
+  const handleToggleTheme = () => setThemeOptionsOpen(!themeOptionsOpen);
 
   useEffect(() => {
     async function initAdmin() {
       try {
+        const adminUser = await getUserInfo();
+        if (!adminUser) {
+          throw new Error('You are not logged in. Please log in or sign up to access this page.');
+        } else if (!adminUser.roles?.includes('ROLE_ADMIN')) {
+          throw new Error('You do not have access to this page.');
+        }
+        setUser(adminUser);
         const list = await getAdminUsers();
         setUsers(list);
       } catch (e) {
         console.error('Fetch failed:', e, { message: e.message, status: e.status });
-        if (e.message.includes('403')) {
-          setError(`You are not authorized to access the admin panel. Error: ${e.message}`);
+        if (
+          e.message.includes('Failed to fetch') ||
+          e.message.includes('401') ||
+          e.message.includes('403')
+        ) {
+          setError('You are not logged in. Please log in or sign up to access this page.');
         } else {
-          setError(`Failed to load admin panel: ${e.message}`);
+          setError(e.message);
         }
       } finally {
         setLoading(false);
@@ -32,6 +67,26 @@ export default function AdminPage() {
     }
     initAdmin();
   }, []);
+
+  useEffect(() => {
+    document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
+  }, [theme]);
+
+  const handleSend = async () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChatMessages(prev => [...prev, { sender: 'user', text }]);
+    setChatInput('');
+    const history = [...chatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), { role: 'user', content: text }];
+    try {
+      const aiModel = user?.aiModel;
+      if (!aiModel) throw new Error('No AI model available');
+      const aiReply = await sendChat(aiModel.ai, aiModel.model, history);
+      setChatMessages(prev => [...prev, { sender: 'ai', text: aiReply }]);
+    } catch (err) {
+      setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Error in chat.' }]);
+    }
+  };
 
   const handleUserSelect = async (user) => {
     setSelectedUser(user);
@@ -42,7 +97,7 @@ export default function AdminPage() {
       const fbs = await getAdminFeedbacksByUser(user.username);
       setFeedbacks(fbs);
     } catch (e) {
-      setError(e.message);
+      setError('You are not logged in. Please log in or sign up to access this page.');
     } finally {
       setLoadingFeedbacks(false);
     }
@@ -63,19 +118,30 @@ export default function AdminPage() {
       <div className="min-h-screen flex items-center justify-center text-white text-xl">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
         <span className="ml-2">Loading Admin Panel...</span>
-    </div>
+      </div>
     );
   }
 
   if (error) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="bg-red-900/70 border border-red-500 rounded-2xl p-6 text-white">
-          <h3 className="text-lg font-semibold">Error</h3>
-          <p className="mt-2">{error}</p>
-          <Link to="/user" className="mt-4 inline-block px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition">
-            Return to User Page
-          </Link>
+        <div className="bg-black/70 border border-white/10 rounded-2xl p-6 text-white text-center">
+          <h3 className="text-lg font-semibold mb-4">Authentication Required</h3>
+          <p className="mb-4">{error}</p>
+          {error === 'You are not logged in. Please log in or sign up to access this page.' ? (
+            <div className="space-x-4">
+              <Link to="/login" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+                Log In
+              </Link>
+              <Link to="/signup" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+                Sign Up
+              </Link>
+            </div>
+          ) : (
+            <Link to="/user" className="mt-4 inline-block px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+              Return to User Page
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -95,12 +161,69 @@ export default function AdminPage() {
           Code Review Hub - Admin
         </Link>
         <div className="relative">
-          <span
-            className="text-white/80 hover:text-white transition-colors cursor-pointer"
-            onClick={handleLogout}
+          <div
+            className="flex items-center gap-3 cursor-pointer"
+            onClick={() => setDropdownOpen(!dropdownOpen)}
           >
-            Log Out
-          </span>
+            {user?.avatar ? (
+              <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
+            ) : (
+              <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center text-lg">
+                {user.name[0]}
+              </div>
+            )}
+            <FaCaretDown className="text-white" />
+          </div>
+          {dropdownOpen && (
+            <div className="absolute right-0 mt-2 w-48 bg-black/80 border border-white/10 rounded-lg shadow-lg z-50">
+              {user?.roles?.includes('ROLE_ADMIN') && (
+                <button
+                  onClick={handleSwitchToUser}
+                  className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-t-lg"
+                >
+                  Switch to User
+                </button>
+              )}
+              <button
+                onClick={handleToggleTheme}
+                className={`w-full text-left px-4 py-2 text-white hover:bg-purple-600 ${!user?.roles?.includes('ROLE_ADMIN') ? 'rounded-t-lg' : ''}`}
+              >
+                Theme
+              </button>
+              {themeOptionsOpen && (
+                <div className="pl-4 py-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      checked={theme === 'light'}
+                      onChange={() => handleThemeSelect('light')}
+                      className="mr-2"
+                    />
+                    <FaSun className="mr-2 text-yellow-400" />
+                    Light
+                  </label>
+                  <label className="flex items-center mt-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="theme"
+                      checked={theme === 'dark'}
+                      onChange={() => handleThemeSelect('dark')}
+                      className="mr-2"
+                    />
+                    <FaMoon className="mr-2 text-gray-300" />
+                    Dark
+                  </label>
+                </div>
+              )}
+              <button
+                onClick={handleLogout}
+                className="w-full text-left px-4 py-2 text-white hover:bg-purple-600 rounded-b-lg"
+              >
+                Logout
+              </button>
+            </div>
+          )}
         </div>
       </nav>
 
@@ -180,7 +303,10 @@ export default function AdminPage() {
                       <h5 className="font-semibold text-purple-400 mb-2">
                         PR #{fb.prId} • <span className="text-white">{fb.repoFullName}</span>
                       </h5>
-                      <ReactMarkdown remarkPlugins={[remarkGfm]} className="text-white/90">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{ p: ({ node, ...props }) => <p className="text-white/90" {...props} /> }}
+                      >
                         {fb.comment}
                       </ReactMarkdown>
                       <button
@@ -197,6 +323,45 @@ export default function AdminPage() {
           </div>
         </div>
       </main>
+
+      {/* Floating AI Chat Button */}
+      <button
+        className="fixed bottom-5 right-5 w-14 h-14 rounded-full bg-purple-600 text-white text-xl flex items-center justify-center shadow-lg z-50"
+        onClick={() => setChatOpen(!chatOpen)}
+        title="Chat with AI"
+      >
+        <FaRobot size={24} />
+      </button>
+
+      {/* Chat window */}
+      {chatOpen && (
+        <div className="fixed bottom-24 right-5 w-80 h-96 bg-white text-black rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden">
+          <div className="bg-purple-600 text-white px-4 py-2 flex justify-between items-center">
+            <span>AI Assistant</span>
+            <button onClick={() => setChatOpen(false)}>✕</button>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2 bg-gray-100">
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? 'bg-blue-100 text-right' : 'bg-white'}`}>
+                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }) => <p className="text-black" {...props} /> }}>
+                  {m.text}
+                </ReactMarkdown>
+              </div>
+            ))}
+          </div>
+          <div className="border-t p-2 flex gap-2">
+            <input
+              type="text"
+              className="flex-1 border border-gray-300 rounded px-2 py-1"
+              placeholder="Type a message..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
+            />
+            <button onClick={handleSend} className="px-3 bg-purple-600 text-white rounded">Send</button>
+          </div>
+        </div>
+      )}
 
       {/* Footer */}
       <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-white/10 py-6 sm:py-8">

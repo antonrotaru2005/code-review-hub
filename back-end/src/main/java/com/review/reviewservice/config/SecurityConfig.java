@@ -44,6 +44,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/feedbacks/**").authenticated()
                         .requestMatchers("/api/chat").authenticated()
                         .requestMatchers("/api/user/**").authenticated()
+                        .requestMatchers("/webhook/bitbucket/**").authenticated()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
