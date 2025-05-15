@@ -175,7 +175,7 @@ export default function AdminPage() {
       </div>
 
       {/* Navbar */}
-      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
+      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center`}>
         <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
           Code Review Hub - Admin
         </Link>
@@ -246,10 +246,10 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <main className={`relative z-40 px-6 py-6 flex-grow ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <main className={`relative z-40 px-6 py-6 flex-grow`}>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="md:col-span-1 space-y-6">
-            <div className={`bg-${theme === 'light' ? 'white/70' : 'black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
+            <div className={`bg-${theme === 'light' ? 'white/70' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
               <h5 className={`mb-3 text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>All Users</h5>
               <div className="space-y-2">
                 {users.map(u => (
@@ -286,7 +286,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <>
-                <div className={`bg-${theme === 'light' ? 'white/70' : 'black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 mb-6 flex items-center`}>
+                <div className={`bg-${theme === 'light' ? 'white/70' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 mb-6 flex items-center`}>
                   {selectedUser.avatar ? (
                     <img
                       src={selectedUser.avatar}

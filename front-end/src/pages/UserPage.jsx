@@ -191,7 +191,7 @@ export default function UserPage() {
       )}
 
       {/* Navbar */}
-      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
+      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center`}>
         <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
           Code Review Hub
         </Link>
@@ -262,7 +262,7 @@ export default function UserPage() {
         </div>
       </nav>
 
-      <main className={`relative z-40 px-6 py-6 flex-grow ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <main className={`relative z-40 px-6 py-6 flex-grow`}>
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1 flex flex-col gap-6">
