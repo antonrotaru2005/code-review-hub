@@ -34,7 +34,7 @@ export default function SignUpPage() {
       )}
 
       {/* Navbar */}
-      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
+      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6`}>
         <Link
           to="/"
           className={`text-2xl sm:text-3xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform`}
@@ -58,7 +58,7 @@ export default function SignUpPage() {
       </nav>
 
       {/* Main SignUp Card */}
-      <main className={`relative z-40 flex flex-col items-center justify-center px-4 sm:px-8 py-20 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <main className={`relative z-40 flex flex-col items-center justify-center px-4 sm:px-8 py-20`}>
         <div className={`bg-${theme === 'light' ? 'white/70' : 'black/70'} backdrop-blur-lg border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-8 sm:p-10 shadow-2xl w-full max-w-md`}>
           <h2 className={`text-center text-3xl sm:text-4xl font-bold mb-6 text-transparent bg-clip-text bg-gradient-to-r ${theme === 'light' ? 'from-blue-400 to-blue-600' : 'from-purple-400 to-blue-500'}`}>
             Sign Up

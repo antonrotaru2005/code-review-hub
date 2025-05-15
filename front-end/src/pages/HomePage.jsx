@@ -84,7 +84,7 @@ export default function HomePage() {
       )}
 
       {/* Navigation */}
-      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
+      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center`}>
         <Link to="/" className={`text-2xl sm:text-3xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform`}>
           Code Review Hub
         </Link>
@@ -196,7 +196,7 @@ export default function HomePage() {
       )}
 
       {/* Hero Section */}
-      <main className={`relative z-40 container mx-auto px-4 sm:px-8 py-12 sm:py-16 grid grid-cols-1 md:grid-cols-2 gap-8 items-start ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <main className={`relative z-40 container mx-auto px-4 sm:px-8 py-12 sm:py-16 grid grid-cols-1 md:grid-cols-2 gap-8 items-start`}>
         <div className="space-y-6 relative h-[22rem] sm:h-96 md:h-80 lg:h-64 overflow-hidden">
           {heroSections.map((section, idx) => (
             <div key={idx} className={`absolute inset-x-0 ${section.active ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-20 pointer-events-none'} transition-all duration-700 ease-in-out`}>              
@@ -238,7 +238,7 @@ function reviewCode(pullRequest) {
       </main>
 
       {/* Features Section */}
-      <section className={`relative z-40 container mx-auto px-4 sm:px-8 py-12 sm:py-16 ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <section className={`relative z-40 container mx-auto px-4 sm:px-8 py-12 sm:py-16`}>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-8">
           {[
             { icon: Code, title: "Code Collaboration", description: "Work together on projects with real-time code review tools.", bgColor: theme === 'light' ? 'bg-blue-100/30' : 'bg-purple-900/30' },
