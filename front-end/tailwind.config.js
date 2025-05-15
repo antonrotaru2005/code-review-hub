@@ -1,12 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  darkMode: 'class',
   content: [
-    "./src/**/*.{js,jsx,ts,tsx}",
+    './index.html',
+    './src/**/*.{js,jsx,ts,tsx}',
   ],
+
   theme: {
     extend: {
       fontFamily: {
-        'gabarito': ['Gabarito', 'sans-serif'],
+        gabarito: ['Gabarito', 'sans-serif'],
       },
       animation: {
         'gradient-x': 'gradient-x 15s ease infinite',
@@ -15,9 +18,9 @@ module.exports = {
         'gradient-x': {
           '0%, 100%': { 'background-position': '0% 50%' },
           '50%': { 'background-position': '100% 50%' },
-        }
-      }
+        },
+      },
     },
   },
   plugins: [],
-}
+};
