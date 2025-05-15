@@ -1,6 +1,6 @@
 # AI-Powered Code Review Service
 
-This Spring Boot application provides automated AI-powered code reviews for Pull Requests (PRs) managed via Bitbucket. It listens to Bitbucket webhook events, processes PR data, fetches modified files, and integrates seamlessly with AI services such as GPT, Grok, Copilot, and Gemini to generate automated code improvement suggestions.
+This Spring Boot + React application provides automated AI-powered code reviews for Pull Requests (PRs) managed via Bitbucket. It listens to Bitbucket webhook events, processes PR data, fetches modified files, and integrates seamlessly with AI services such as GPT, Grok, Copilot, and Gemini to generate automated code improvement suggestions.
 
 ## Technologies Used
 
@@ -32,7 +32,8 @@ com.review.reviewservice
 │   ├── AiProperties
 │   ├── BitbucketProperties
 │   ├── RestTemplateConfig
-│   └── SecurityConfig
+│   ├── SecurityConfig
+│   └── WebSocketConfig
 ├── controller
 │   ├── AdminController
 │   ├── ChatController
@@ -58,12 +59,14 @@ com.review.reviewservice
 │       ├── AiModel
 │       ├── Feedback
 │       ├── Role
-│       └── User
+│       ├── User
+│       └── WebhookToken
 ├── repository
 │   ├── AiModelRepository
 │   ├── FeedbackRepository
 │   ├── RoleRepository
-│   └── UserRepository
+│   ├── UserRepository
+│   └── WebhookTokenRepository
 ├── service
 │   ├── BitbucketService
 │   ├── ChatService
@@ -92,10 +95,11 @@ FRONT-END
 │   │   ├── admin.js
 │   │   ├── chat.js
 │   │   └── user.js
-│   ├── components
-│   │   ├── PRList.jsx
-│   │   └── UserProfile.jsx
+│   ├── contexts
+│   │   └── ThemeContext.jsx
 │   ├── pages
+│   │   ├── AdminPage.jsx
+│   │   ├── CreatePrPage.jsx
 │   │   ├── HomePage.jsx
 │   │   ├── LoginPage.jsx
 │   │   ├── SignUpPage.jsx
@@ -108,7 +112,9 @@ FRONT-END
 │   └── index.js
 ├── .env
 ├── .gitignore
+├── tailwind.config.js
 └── package-lock.json
+
 ```
 
 ## Setup Instructions
@@ -175,7 +181,9 @@ npm start
 * Database migrations using Liquibase
 * Feedback management system
 * AI assistant integration on user pages
+* User page functionalities
 * Admin page functionalities
+* Light and Dark themes
 
 ## Developers
 
