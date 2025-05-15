@@ -6,6 +6,7 @@ import SockJS from 'sockjs-client';
 import { FaCheckCircle, FaInfoCircle, FaLink, FaCheck, FaSave } from 'react-icons/fa';
 import { getUserInfo, getWebhookToken } from '../api/user';
 import { Link } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
 
 export default function CreatePrPage() {
   const [user, setUser] = useState(null);
@@ -17,6 +18,7 @@ export default function CreatePrPage() {
   const [loading, setLoading] = useState(true);
   const didFetchRef = useRef(false);
   const navigate = useNavigate();
+  const { theme } = useTheme();
 
   // 1. Fetch the user data for the username
   useEffect(() => {
@@ -103,13 +105,17 @@ export default function CreatePrPage() {
 
   if (loading) {
     return (
-      <div className="relative min-h-screen bg-black text-white flex items-center justify-center">
+      <div className={`relative min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
         <div className="absolute inset-0 z-0 opacity-30">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+          {theme === 'dark' && (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+            </>
+          )}
         </div>
-        <div className="relative z-10 flex items-center text-xl">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-purple-600"></div>
+        <div className={`relative z-10 flex items-center text-xl ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+          <div className={`animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 ${theme === 'light' ? 'border-blue-600' : 'border-purple-600'}`}></div>
           <span className="ml-2">Loading...</span>
         </div>
       </div>
@@ -118,19 +124,23 @@ export default function CreatePrPage() {
 
   if (error) {
     return (
-      <div className="relative min-h-screen bg-black text-white flex items-center justify-center">
+      <div className={`relative min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
         <div className="absolute inset-0 z-0 opacity-30">
-          <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+          {theme === 'dark' && (
+            <>
+              <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+              <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+            </>
+          )}
         </div>
-        <div className="relative z-10 bg-black/70 border border-white/10 rounded-2xl p-6 text-white text-center">
-          <h3 className="text-lg font-semibold mb-4">Authentication Required</h3>
-          <p className="mb-4">You are not logged in. Please log in or sign up to access this page.</p>
+        <div className={`relative z-10 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
+          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Authentication Required</h3>
+          <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>You are not logged in. Please log in or sign up to access this page.</p>
           <div className="space-x-4">
-            <Link to="/login" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+            <Link to="/login" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
               Log In
             </Link>
-            <Link to="/signup" className="px-4 py-2 bg-purple-600 text-white rounded-full hover:bg-purple-500 transition no-underline">
+            <Link to="/signup" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
               Sign Up
             </Link>
           </div>
@@ -140,21 +150,25 @@ export default function CreatePrPage() {
   }
 
   return (
-    <div className="relative min-h-screen bg-black text-white font-['Gabarito'] flex flex-col overflow-hidden">
+    <div className={`relative min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} font-['Gabarito'] flex flex-col overflow-hidden`}>
       {/* Background */}
       <div className="absolute inset-0 z-0 opacity-30">
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+        {theme === 'dark' && (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+          </>
+        )}
       </div>
 
       {/* Navbar */}
-      <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
-        <Link to="/" className="text-2xl font-bold text-white tracking-wider hover:scale-105 transition-transform no-underline">
+      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
+        <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
           Code Review Hub
         </Link>
         <div className="relative">
           <span
-            className="text-white/80 hover:text-purple-400 transition-colors cursor-pointer"
+            className={`${theme === 'light' ? 'text-black/80 hover:text-blue-400' : 'text-white/80 hover:text-purple-400'} transition-colors cursor-pointer`}
             onClick={handleLogout}
           >
             Log Out
@@ -162,59 +176,59 @@ export default function CreatePrPage() {
         </div>
       </nav>
 
-      <main className="relative z-40 px-6 py-4 flex-grow flex items-center justify-center">
+      <main className={`relative z-40 px-6 py-4 flex-grow flex items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
         <Container className="text-center max-w-lg">
-          <Card className="bg-black/80 border border-purple-500/30 rounded-2xl p-4 shadow-lg">
-            <Card.Header className="bg-gradient-to-r from-purple-800 to-indigo-900 text-white text-lg font-bold py-3 rounded-t-2xl flex items-center">
-              <FaInfoCircle className="w-5 h-5 mr-2 text-purple-300" />
+          <Card className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-2xl p-4 shadow-lg`}>
+            <Card.Header className={`bg-gradient-to-r ${theme === 'light' ? 'from-blue-800 to-blue-900' : 'from-purple-800 to-indigo-900'} text-${theme === 'light' ? 'white' : 'white'} text-lg font-bold py-3 rounded-t-2xl flex items-center`}>
+              <FaInfoCircle className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-300' : 'text-purple-300'}`} />
               Configuration Instructions
-            </Card.Header>
-            <Card.Body className="text-white space-y-2">
+            </Card.Header >
+            <Card.Body className={`text-${theme === 'light' ? 'black' : 'white'} space-y-2`}>
               <ol className="list-decimal pl-5 space-y-2 text-sm">
                 <li className="flex items-start">
-                  <FaInfoCircle className="w-4 h-4 mr-2 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <span>In Bitbucket, go to <strong className="text-purple-300">Repository Settings → Webhooks</strong>.</span>
+                  <FaInfoCircle className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
+                  <span className={theme === 'light' ? 'text-black' : 'text-white'}>In Bitbucket, go to <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Repository Settings → Webhooks</strong>.</span>
                 </li>
                 <li className="flex items-start">
-                  <FaLink className="w-4 h-4 mr-2 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <span>
-                    <strong className="text-purple-300">Add a new webhook with URL:</strong>{" "}
+                  <FaLink className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
+                  <span className={theme === 'light' ? 'text-black' : 'text-white'}>
+                    <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Add a new webhook with URL:</strong>{" "}
                     {token ? (
                       <strong>
                         <code
-                          className="bg-black/90 text-white px-1.5 py-0.5 rounded-lg shadow-sm hover:bg-purple-900/50 transition duration-200 cursor-pointer"
+                          className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} text-${theme === 'light' ? 'black' : 'white'} px-1.5 py-0.5 rounded-lg shadow-sm hover:${theme === 'light' ? 'bg-blue-200/50' : 'bg-purple-900/50'} transition duration-200 cursor-pointer`}
                           onClick={handleCopyLink}
                         >
                           {window.location.origin}/webhook/bitbucket/{token}
                         </code>
                       </strong>
                     ) : (
-                      <em className="text-purple-400/70 italic">Generating your one-time link…</em>
+                      <em className={theme === 'light' ? 'text-blue-400/70' : 'text-purple-400/70'} italic>Generating your one-time link…</em>
                     )}
                   </span>
                 </li>
                 {copied && (
-                  <div className="text-purple-400 text-xs mt-1">Copied to clipboard</div>
+                  <div className={`${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} text-xs mt-1`}>Copied to clipboard</div>
                 )}
                 <li className="flex items-start">
-                  <FaCheck className="w-4 h-4 mr-2 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <span>Select <strong className="text-purple-300">Pull Request events</strong> (created, updated).</span>
+                  <FaCheck className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
+                  <span className={theme === 'light' ? 'text-black' : 'text-white'}>Select <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Pull Request events</strong> (created, updated).</span>
                 </li>
                 <li className="flex items-start">
-                  <FaSave className="w-4 h-4 mr-2 text-purple-400 mt-0.5 flex-shrink-0" />
-                  <span>
-                    <strong className="text-purple-300">Save</strong> and then <strong className="text-purple-300">create a Pull Request</strong> in the repository.
+                  <FaSave className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
+                  <span className={theme === 'light' ? 'text-black' : 'text-white'}>
+                    <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Save</strong> and then <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>create a Pull Request</strong> in the repository.
                   </span>
                 </li>
               </ol>
             </Card.Body>
           </Card>
 
-          <h5 className="text-lg font-semibold text-white mt-4">{stage}</h5>
-          {!done && <Spinner animation="border" role="status" className="my-2 text-purple-400" />}
+          <h5 className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'} mt-4`}>{stage}</h5>
+          {!done && <Spinner animation="border" role="status" className={`my-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />}
           {done && (
-            <Alert variant="success" className="bg-black/80 border border-purple-500/30 text-white rounded-2xl p-3 mt-4 flex items-center justify-center">
-              <FaCheckCircle size={20} className="mr-2 text-purple-400" />
+            <Alert variant="success" className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} text-${theme === 'light' ? 'black' : 'white'} rounded-2xl p-3 mt-4 flex items-center justify-center`}>
+              <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
               <span>Done!</span>
             </Alert>
           )}
@@ -222,8 +236,8 @@ export default function CreatePrPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-40 bg-black/70 backdrop-blur-lg border-t border-purple-500/30 py-4 sm:py-6">
-        <div className="text-center mt-2 sm:mt-4 text-white/50 text-xs sm:text-sm">
+      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} backdrop-blur-lg border-t border-${theme === 'light' ? 'black/10' : 'purple-500/30'} py-4 sm:py-6`}>
+        <div className={`text-center mt-2 sm:mt-4 ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-xs sm:text-sm`}>
           © {new Date().getFullYear()} Code Review Hub. All rights reserved.
         </div>
       </footer>
@@ -243,15 +257,15 @@ export default function CreatePrPage() {
           background-color: transparent !important;
         }
         .card-header {
-          background: linear-gradient(to right, #5b21b6, #312e81) !important; /* Matches from-purple-800 to-indigo-900 */
+          background: linear-gradient(to right, ${theme === 'light' ? '#1e40af #1e3a8a' : '#5b21b6 #312e81'}) !important; /* Matches from-blue-800 to-blue-900 or from-purple-800 to-indigo-900 */
           border-bottom: none !important;
         }
         .card-body {
           background-color: transparent !important;
         }
-        /* Ensure dark background for error states */
+        /* Ensure theme-specific background for body */
         html, body {
-          background-color: #000 !important;
+          background-color: ${theme === 'light' ? '#ffffff' : '#000000'} !important;
         }
       `}</style>
     </div>
