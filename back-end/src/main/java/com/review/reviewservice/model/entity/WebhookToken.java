@@ -18,7 +18,8 @@ public class WebhookToken {
     @ManyToOne(fetch = FetchType.LAZY)
     private User user;
 
-    private boolean used = false;
+    private boolean active = true;
 
     private LocalDateTime expiresAt;
 }
+

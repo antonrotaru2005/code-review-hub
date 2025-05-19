@@ -34,12 +34,9 @@ public class SecurityConfig {
     }
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, TokenLogoutHandler tokenLogoutHandler) throws Exception {
         http
-                // Disable CSRF for API usage
                 .csrf(AbstractHttpConfigurer::disable)
-
-                // Authorization rules
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/feedbacks/**").authenticated()
                         .requestMatchers("/api/chat").authenticated()
@@ -47,14 +44,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().permitAll()
                 )
-
-                // Handler of Access Denied
                 .exceptionHandling(ex -> ex
                         .accessDeniedHandler((req, res, ex2) ->
                                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied"))
                 )
-
-                // OAuth2 Login configuration
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(authenticationSuccessHandler())
                         .failureHandler(authenticationFailureHandler())
@@ -62,10 +55,9 @@ public class SecurityConfig {
                                 .userService(customOAuth2UserService)
                         )
                 )
-
-                // Logout redirection
                 .logout(logout -> logout
                         .logoutUrl("/logout")
+                        .addLogoutHandler(tokenLogoutHandler)
                         .logoutSuccessUrl(frontendUrl)
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")

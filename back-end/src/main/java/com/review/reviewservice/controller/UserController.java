@@ -100,19 +100,39 @@ public class UserController {
         return ResponseEntity.ok("AI preference set to " + ai + " with model " + model + " for user " + username + ".");
     }
 
+    /** ON  — Activate token or select already active one */
     @PostMapping("/webhook-token")
-    public ResponseEntity<Map<String,String>> generateToken(@AuthenticationPrincipal OAuth2User oauthUser) {
-        String username = oauthUser.getAttribute("username");
+    public ResponseEntity<Map<String,String>> enableWebhookToken(
+            @AuthenticationPrincipal OAuth2User oauth) {
+
+        String username = oauth.getAttribute("username");
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new IllegalStateException("User not found"));
 
-        String token = UUID.randomUUID().toString();
-        WebhookToken wt = new WebhookToken();
-        wt.setToken(token);
-        wt.setUser(user);
-        wt.setExpiresAt(LocalDateTime.now().plusHours(1));
-        webhookTokenRepository.save(wt);
+        WebhookToken wt = webhookTokenRepository.findByUserAndActiveTrue(user)
+                .orElseGet(() -> {
+                    WebhookToken t = new WebhookToken();
+                    t.setToken(UUID.randomUUID().toString());
+                    t.setUser(user);
+                    t.setExpiresAt(LocalDateTime.now().plusDays(1)); //or null
+                    return webhookTokenRepository.save(t);
+                });
 
-        return ResponseEntity.ok(Map.of("token", token));
+        return ResponseEntity.ok(Map.of("token", wt.getToken()));
+    }
+
+    /** OFF — Disable token */
+    @DeleteMapping("/webhook-token")
+    public ResponseEntity<Void> disableWebhookToken(
+            @AuthenticationPrincipal OAuth2User oauth) {
+
+        String username = oauth.getAttribute("username");
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new IllegalStateException("User not found"));
+
+        webhookTokenRepository.findByUserAndActiveTrue(user)
+                .ifPresent(t -> { t.setActive(false); webhookTokenRepository.save(t); });
+
+        return ResponseEntity.ok().build();
     }
 }

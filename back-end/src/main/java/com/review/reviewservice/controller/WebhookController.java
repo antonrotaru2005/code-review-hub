@@ -47,15 +47,12 @@ public class WebhookController {
     public ResponseEntity<String> receiveWebhook(
             @PathVariable String token,
             @RequestBody BitbucketWebhookPayload payload) {
-        // Verify the token
-        WebhookToken wt = webhookTokenRepository.findByToken(token)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Token not found"));
+        WebhookToken wt = webhookTokenRepository.findByTokenAndActiveTrue(token)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Token inactive or not found"));
 
-        if(wt.isUsed() || wt.getExpiresAt().isBefore(LocalDateTime.now()))
-            throw new ResponseStatusException(HttpStatus.GONE, "Token expired or already used");
-
-        wt.setUsed(true);
-        webhookTokenRepository.save(wt);
+        if (wt.getExpiresAt() != null && wt.getExpiresAt().isBefore(LocalDateTime.now()))
+            throw new ResponseStatusException(HttpStatus.GONE, "Token expired");
 
         // Find the user
         String uuid = payload.getPullRequest().getAuthor().getUuid();
