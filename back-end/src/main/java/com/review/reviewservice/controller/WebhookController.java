@@ -87,7 +87,9 @@ public class WebhookController {
                 Map.of("stage", "AI Code Analysis")
         );
 
-        String feedback = codeReviewService.reviewFiles(fetchedFiles, ai, model);
+        List<String> aspects = user.getReviewAspectsList();
+
+        String feedback = codeReviewService.reviewFiles(fetchedFiles, ai, model, aspects);
 
         if (feedback != null) {
             Long prId = payload.getPullRequest().getId();

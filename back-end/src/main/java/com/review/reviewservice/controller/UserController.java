@@ -10,10 +10,12 @@ import com.review.reviewservice.model.repository.AiModelRepository;
 import com.review.reviewservice.model.repository.WebhookTokenRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -134,5 +136,29 @@ public class UserController {
                 .ifPresent(t -> { t.setActive(false); webhookTokenRepository.save(t); });
 
         return ResponseEntity.ok().build();
+    }
+
+    /**
+     * Update which aspects this user wants in their AI review.
+     * If the list is empty, the DB default (all 10) remains intact.
+     */
+    @PutMapping("/{username}/aspects")
+    public ResponseEntity<Void> updateReviewAspects(
+            @PathVariable String username,
+            @RequestBody List<String> aspects) {
+
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "User not found: " + username));
+
+        if (aspects == null || aspects.isEmpty()) {
+            //leave default
+        } else {
+            user.setReviewAspectsList(aspects);
+        }
+
+        userRepository.save(user);
+        return ResponseEntity.noContent().build();
     }
 }
