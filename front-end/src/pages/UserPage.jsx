@@ -25,6 +25,7 @@ export default function UserPage() {
   const [chatInput, setChatInput] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
+  const [isSessionEnabled, setIsSessionEnabled] = useState(true);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -149,12 +150,16 @@ export default function UserPage() {
     }
   };
 
+  const toggleSession = () => {
+    setIsSessionEnabled(prev => !prev);
+  };
+
   if (loading) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
         <div className={`animate-spin rounded-full h-8 w-8 ${theme === 'light' ? 'border-t-2 border-b-2 border-blue-600' : 'border-t-2 border-b-2 border-purple-600'}`}></div>
         <span className="ml-2">Loading User Page...</span>
-      </div>
+      Snippets</div>
     );
   }
 
@@ -323,10 +328,29 @@ export default function UserPage() {
           <div className="lg:col-span-3">
             <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
               <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
-              <div className="flex gap-4 items-center">
-                <Link to="/create-pr" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition font-medium no-underline`}>
-                  Create PR
-                </Link>
+              <div className="flex flex-col gap-2 items-center">
+                <div className="flex gap-4 items-center">
+                  <Link to="/create-pr" className={`text-sm ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'} no-underline`}>
+                    How to use?
+                  </Link>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSessionEnabled}
+                      onChange={toggleSession}
+                      className="sr-only peer"
+                    />
+                    <div className={`w-11 h-6 ${isSessionEnabled ? (theme === 'light' ? 'bg-blue-600' : 'bg-purple-600') : 'bg-gray-400'} peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-offset-2 peer-focus:ring-${theme === 'light' ? 'blue-300' : 'purple-300'} rounded-full peer peer-checked:bg-${theme === 'light' ? 'blue-600' : 'purple-600'} after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:after:translate-x-full`}></div>
+                    <span className={`ml-2 text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                      {isSessionEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </label>
+                </div>
+                {!isSessionEnabled && (
+                  <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
+                    your session is disabled
+                  </div>
+                )}
                 <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm`}>
                   Current Model: <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
                 </div>
