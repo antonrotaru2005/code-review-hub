@@ -49,16 +49,20 @@ public class UserController {
     @GetMapping
     public UserDto getUserInfo(@AuthenticationPrincipal OAuth2User oauthUser) {
         if (oauthUser == null) {
-            log.error("OAuth2User is null in getUserInfo");
-            throw new IllegalStateException("No authenticated OAuth2 user found");
+            log.error("OAuth2User este null în getUserInfo");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
         }
         String username = oauthUser.getAttribute("username");
+        if (username == null) {
+            log.error("Atributul 'username' lipsește din OAuth2User: {}", oauthUser.getAttributes());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
+        }
         String displayName = oauthUser.getAttribute("display_name");
         if (displayName == null) {
             displayName = username;
         }
         User appUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
         String email = appUser.getEmail();
         String avatarUrl = null;
         Object links = oauthUser.getAttribute("links");
@@ -69,7 +73,7 @@ public class UserController {
             }
         }
         AiModel ai_model = appUser.getAiModel();
-        
+
         List<String> roles = appUser.getRoles().stream()
                 .map(Role::getName)
                 .toList();
@@ -90,70 +94,142 @@ public class UserController {
             @RequestParam String ai,
             @RequestParam String model) {
         String username = oauthUser.getAttribute("username");
+        if (username == null) {
+            log.error("Atributul 'username' lipsește din OAuth2User: {}", oauthUser.getAttributes());
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
+        }
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
         AiModel aiModel = aiModelRepository.findByAiIgnoreCaseAndModelIgnoreCase(ai, model)
-                .orElseThrow(() -> new IllegalArgumentException("AI model not found for ai: " + ai + " and model: " + model));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Model AI nu a fost găsit pentru ai: " + ai + " și model: " + model));
 
         user.setAiModel(aiModel);
         userRepository.save(user);
 
-        return ResponseEntity.ok("AI preference set to " + ai + " with model " + model + " for user " + username + ".");
+        return ResponseEntity.ok("Preferința AI setată la " + ai + " cu modelul " + model + " pentru utilizatorul " + username + ".");
     }
 
-    /** ON  — Activate token or select already active one */
+    /** ON  — Activează tokenul sau selectează unul deja activ */
     @PostMapping("/webhook-token")
     public ResponseEntity<Map<String,String>> enableWebhookToken(
             @AuthenticationPrincipal OAuth2User oauth) {
+        try {
+            if (oauth == null) {
+                log.warn("Acces neautorizat pentru activarea webhook-ului: OAuth2User este null");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
+            }
+            String username = oauth.getAttribute("username");
+            if (username == null) {
+                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
+            }
+            log.info("Activare webhook pentru utilizatorul: {}", username);
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
-        String username = oauth.getAttribute("username");
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+            // Dezactivează tokenurile existente
+            webhookTokenRepository.findByUserAndActiveTrue(user)
+                    .ifPresent(t -> {
+                        t.setActive(false);
+                        webhookTokenRepository.save(t);
+                        log.info("Token vechi dezactivat pentru utilizatorul: {}", username);
+                    });
 
-        WebhookToken wt = webhookTokenRepository.findByUserAndActiveTrue(user)
-                .orElseGet(() -> {
-                    WebhookToken t = new WebhookToken();
-                    t.setToken(UUID.randomUUID().toString());
-                    t.setUser(user);
-                    t.setExpiresAt(LocalDateTime.now().plusDays(1)); //or null
-                    return webhookTokenRepository.save(t);
-                });
+            // Creează token nou
+            WebhookToken wt = new WebhookToken();
+            wt.setToken(UUID.randomUUID().toString());
+            wt.setUser(user);
+            wt.setActive(true);
+            wt.setExpiresAt(LocalDateTime.now().plusDays(1));
+            webhookTokenRepository.save(wt);
+            log.info("Token webhook creat pentru utilizatorul: {}", username);
 
-        return ResponseEntity.ok(Map.of("token", wt.getToken()));
+            return ResponseEntity.ok(Map.of("token", wt.getToken()));
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Eroare neașteptată la activarea webhook-ului", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Eroare internă la activarea webhook-ului", e);
+        }
     }
 
-    /** OFF — Disable token */
+    /** OFF — Dezactivează tokenul */
     @DeleteMapping("/webhook-token")
     public ResponseEntity<Void> disableWebhookToken(
             @AuthenticationPrincipal OAuth2User oauth) {
+        try {
+            if (oauth == null) {
+                log.warn("Acces neautorizat pentru dezactivarea webhook-ului: OAuth2User este null");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
+            }
+            String username = oauth.getAttribute("username");
+            if (username == null) {
+                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
+            }
+            log.info("Dezactivare webhook pentru utilizatorul: {}", username);
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
-        String username = oauth.getAttribute("username");
-        User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new IllegalStateException("User not found"));
+            webhookTokenRepository.findByUserAndActiveTrue(user)
+                    .ifPresent(t -> {
+                        t.setActive(false);
+                        webhookTokenRepository.save(t);
+                        log.info("Token webhook dezactivat pentru utilizatorul: {}", username);
+                    });
 
-        webhookTokenRepository.findByUserAndActiveTrue(user)
-                .ifPresent(t -> { t.setActive(false); webhookTokenRepository.save(t); });
+            return ResponseEntity.noContent().build(); // Status 204
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Eroare neașteptată la dezactivarea webhook-ului", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Eroare internă la dezactivarea webhook-ului", e);
+        }
+    }
 
-        return ResponseEntity.ok().build();
+    /** Verifică tokenul webhook activ */
+    @GetMapping("/webhook-token")
+    public ResponseEntity<Map<String, String>> getWebhookToken(
+            @AuthenticationPrincipal OAuth2User oauth) {
+        try {
+            if (oauth == null) {
+                log.warn("Acces neautorizat pentru verificarea webhook-ului: OAuth2User este null");
+                throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
+            }
+            String username = oauth.getAttribute("username");
+            if (username == null) {
+                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
+            }
+            log.info("Verificare token webhook pentru utilizatorul: {}", username);
+            User user = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+
+            return webhookTokenRepository.findByUserAndActiveTrue(user)
+                    .map(t -> ResponseEntity.ok(Map.of("token", t.getToken())))
+                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+        } catch (ResponseStatusException e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Eroare neașteptată la verificarea webhook-ului", e);
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Eroare internă la verificarea webhook-ului", e);
+        }
     }
 
     /**
-     * Update which aspects this user wants in their AI review.
-     * If the list is empty, the DB default (all 10) remains intact.
+     * Actualizează aspectele dorite de utilizator pentru revizuirea AI.
+     * Dacă lista este goală, se păstrează valorile implicite din DB (toate 10).
      */
     @PutMapping("/{username}/aspects")
     public ResponseEntity<Void> updateReviewAspects(
             @PathVariable String username,
             @RequestBody List<String> aspects) {
-
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() ->
-                        new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                "User not found: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
         if (aspects == null || aspects.isEmpty()) {
-            //leave default
+            // Păstrează valorile implicite
         } else {
             user.setReviewAspectsList(aspects);
         }
