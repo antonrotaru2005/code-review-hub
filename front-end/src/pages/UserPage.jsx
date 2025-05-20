@@ -5,7 +5,7 @@ import remarkGfm from 'remark-gfm';
 import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken } from '../api/user';
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle } from 'react-icons/fa';
+import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { Card, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
@@ -32,6 +32,7 @@ export default function UserPage() {
   const [token, setToken] = useState(null);
   const [stage, setStage] = useState(null);
   const [done, setDone] = useState(false);
+  const [collapsedFeedbacks, setCollapsedFeedbacks] = useState({});
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -52,10 +53,20 @@ export default function UserPage() {
   ];
 
   const groupByRepo = (feedbacks) => {
-    return feedbacks.reduce((acc, fb) => {
+    // Sort feedbacks by ID in descending order (most recent first)
+    const sortedFeedbacks = [...feedbacks].sort((a, b) => b.id - a.id);
+    return sortedFeedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
       return acc;
     }, {});
+  };
+
+  // Toggle collapse state for a specific feedback
+  const toggleCollapse = (feedbackId) => {
+    setCollapsedFeedbacks((prev) => ({
+      ...prev,
+      [feedbackId]: !prev[feedbackId],
+    }));
   };
 
   // Load user, feedbacks, and webhook status
@@ -70,6 +81,10 @@ export default function UserPage() {
         try {
           const fbs = await getUserFeedbacks(u.username);
           setFeedbacks(fbs);
+          // Initialize collapsed state for all feedbacks
+          setCollapsedFeedbacks(
+            fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: false }), {})
+          );
         } catch (fbErr) {
           console.error('Failed to load feedbacks:', {
             message: fbErr.message,
@@ -254,7 +269,7 @@ export default function UserPage() {
     setStage(null);
     setDone(false);
     localStorage.clear();
-    document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'; 
+    document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     navigate('/');
   };
 
@@ -515,14 +530,43 @@ export default function UserPage() {
                   <h4 className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-lg mb-2`}>{repo}</h4>
                   <div className="space-y-4">
                     {items.map(fb => (
-                      <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
-                        <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>Pull Request #{fb.prId} – {fb.model}</h5>
-                        <ReactMarkdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
+                      <div
+                        key={fb.id}
+                        className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 relative`}
+                      >
+                        <button
+                          onClick={() => toggleCollapse(fb.id)}
+                          className={`absolute top-2 right-2 p-2 rounded-full ${theme === 'light' ? 'text-blue-600 hover:bg-blue-100' : 'text-purple-600 hover:bg-purple-900'}`}
+                          title={collapsedFeedbacks[fb.id] ? 'Expand' : 'Collapse'}
                         >
-                          {fb.comment}
-                        </ReactMarkdown>
+                          {collapsedFeedbacks[fb.id] ? (
+                            <FaChevronUp size={16} />
+                          ) : (
+                            <FaChevronDown size={16} />
+                          )}
+                        </button>
+                        {collapsedFeedbacks[fb.id] ? (
+                          <div className="flex justify-between items-center">
+                            <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>
+                              Pull Request #{fb.prId} – {fb.model}
+                            </h5>
+                            <span className={`text-sm ${theme === 'light' ? 'text-black/70' : 'text-white/70'}`}>
+                              {fb.repoFullName}
+                            </span>
+                          </div>
+                        ) : (
+                          <>
+                            <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>
+                              Pull Request #{fb.prId} – {fb.model}
+                            </h5>
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm]}
+                              components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
+                            >
+                              {fb.comment}
+                            </ReactMarkdown>
+                          </>
+                        )}
                       </div>
                     ))}
                   </div>

@@ -7,12 +7,18 @@ export function ThemeProvider({ children }) {
     () => localStorage.getItem('theme') ?? 'dark'
   );
 
+  const toggleTheme = (newTheme) => {
+    setTheme(newTheme);
+  };
+
   useEffect(() => {
     const root = document.documentElement;
-    // Apply initial class
+    // Apply theme class
     if (theme === 'light') {
       root.classList.remove('dark');
+      root.classList.add('light');
     } else {
+      root.classList.remove('light');
       root.classList.add('dark');
     }
     // Update localStorage
@@ -20,10 +26,16 @@ export function ThemeProvider({ children }) {
   }, [theme]);
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme }}>
+    <ThemeContext.Provider value={{ theme, setTheme, toggleTheme }}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) {
+    throw new Error('useTheme must be used within a ThemeProvider');
+  }
+  return context;
+};
