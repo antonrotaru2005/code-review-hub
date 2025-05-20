@@ -11,11 +11,17 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.AuthenticationFailureHandler;
 import org.springframework.security.web.authentication.AuthenticationSuccessHandler;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.List;
 
 @Slf4j
 @Configuration
@@ -45,8 +51,16 @@ public class SecurityConfig {
                         .anyRequest().permitAll()
                 )
                 .exceptionHandling(ex -> ex
-                        .accessDeniedHandler((req, res, ex2) ->
-                                res.sendError(HttpServletResponse.SC_FORBIDDEN, "Access Denied"))
+                        .authenticationEntryPoint((req, res, ex2) -> {
+                            res.setContentType("application/json");
+                            res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            res.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Authentication required\"}");
+                        })
+                        .accessDeniedHandler((req, res, ex2) -> {
+                            res.setContentType("application/json");
+                            res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                            res.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Access Denied\"}");
+                        })
                 )
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(authenticationSuccessHandler())
@@ -58,14 +72,19 @@ public class SecurityConfig {
                 .logout(logout -> logout
                         .logoutUrl("/logout")
                         .addLogoutHandler(tokenLogoutHandler)
+                        .addLogoutHandler((req, res, auth) -> {
+                            if (auth != null) {
+                                SecurityContextHolder.clearContext();
+                            }
+                        })
                         .logoutSuccessUrl(frontendUrl)
                         .invalidateHttpSession(true)
                         .deleteCookies("JSESSIONID")
+                        .permitAll()
                 );
 
         return http.build();
     }
-
 
     /**
      * Handles authentication failures by redirecting to front-end with error codes.

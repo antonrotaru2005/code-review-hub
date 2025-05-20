@@ -1,37 +1,61 @@
-// src/api/user.js
-
-// 1. Fetch datele de profil
 export async function getUserInfo() {
-  const res = await fetch('/api/user', { credentials: 'include' });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`getUserInfo failed: ${res.status} — ${text}`);
+  const response = await fetch('/api/user', { credentials: 'include' });
+  if (!response.ok) {
+    const contentType = response.headers.get('Content-Type');
+    if (contentType && !contentType.includes('application/json')) {
+      throw new Error(`${response.status} - Răspuns non-JSON primit`);
+    }
+    const errorData = await response.json().catch(() => ({}));
+    throw new Error(`${response.status} - ${errorData.message || 'Nu s-au putut obține datele utilizatorului'}`);
   }
-  return res.json();
+  return response.json();
 }
 
-// 2. Fetch feedback-urile trimise de user
 export async function getUserFeedbacks(username) {
-  const res = await fetch(`/api/feedbacks/user/${encodeURIComponent(username)}`, {
+  const response = await fetch(`/api/feedbacks/user/${username}`, {
     credentials: 'include'
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`getUserFeedbacks failed: ${res.status} — ${text}`);
+  if (!response.ok) {
+    throw new Error(`${response.status} - Nu s-au putut obține feedback-urile`);
   }
-  return res.json();
+  return response.json();
 }
 
-// 3. Fetch a one-time webhook token
-export async function getWebhookToken() {
-  const res = await fetch('/api/user/webhook-token', {
+export async function enableWebhookToken() {
+  const response = await fetch('/api/user/webhook-token', {
     method: 'POST',
-    credentials: 'include'
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }
   });
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`getWebhookToken failed: ${res.status} — ${text}`);
+  console.log('Răspuns POST /api/user/webhook-token:', { status: response.status });
+  if (!response.ok) {
+    const contentType = response.headers.get('Content-Type');
+    const errorData = contentType && contentType.includes('application/json')
+      ? await response.json().catch(() => ({}))
+      : {};
+    throw new Error(`${response.status} - ${errorData.message || 'Nu s-a putut activa webhook-ul'}`);
   }
-  const { token } = await res.json();
-  return token;
+  const data = await response.json();
+  console.log('Token activat:', data);
+  return data;
+}
+
+export async function disableWebhookToken() {
+  const response = await fetch('/api/user/webhook-token', {
+    method: 'DELETE',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' }
+  });
+  console.log('Răspuns DELETE /api/user/webhook-token:', { status: response.status });
+  if (!response.ok) {
+    const contentType = response.headers.get('Content-Type');
+    const errorData = contentType && contentType.includes('application/json')
+      ? await response.json().catch(() => ({}))
+      : {};
+    throw new Error(`${response.status} - ${errorData.message || 'Nu s-a putut dezactiva webhook-ul'}`);
+  }
+  if (response.status === 204 || response.status === 200) {
+    return {};
+  }
+  return response.json();
 }

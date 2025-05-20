@@ -2,11 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getUserInfo, getUserFeedbacks } from '../api/user';
+import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken } from '../api/user';
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaRobot, FaCaretDown, FaSun, FaMoon } from 'react-icons/fa';
-import { Card, DropdownButton, Dropdown } from 'react-bootstrap';
+import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle } from 'react-icons/fa';
+import { Card, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import Switch from 'react-switch';
+import { Client } from '@stomp/stompjs';
+import SockJS from 'sockjs-client';
 
 export default function UserPage() {
   const [user, setUser] = useState(null);
@@ -25,9 +28,14 @@ export default function UserPage() {
   const [chatInput, setChatInput] = useState('');
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
+  const [webhookEnabled, setWebhookEnabled] = useState(false);
+  const [token, setToken] = useState(null);
+  const [stage, setStage] = useState(null);
+  const [done, setDone] = useState(false);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+  const didFetchRef = useRef(false);
 
   const aiModels = [
     { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini', label: 'GPT-4o-mini' },
@@ -50,18 +58,64 @@ export default function UserPage() {
     }, {});
   };
 
+  // Load user, feedbacks, and webhook status
   useEffect(() => {
+    if (didFetchRef.current) return;
+    didFetchRef.current = true;
+
     async function load() {
       try {
         const u = await getUserInfo();
         setUser(u);
-        const fbs = await getUserFeedbacks(u.username);
-        setFeedbacks(fbs);
+        try {
+          const fbs = await getUserFeedbacks(u.username);
+          setFeedbacks(fbs);
+        } catch (fbErr) {
+          console.error('Failed to load feedbacks:', {
+            message: fbErr.message,
+            status: fbErr.message.match(/\d{3}/)?.[0],
+            stack: fbErr.stack,
+            username: u.username
+          });
+          setFeedbacks([]);
+        }
+        try {
+          const response = await fetch('/api/user/webhook-token', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log('Response GET /api/user/webhook-token:', { status: response.status });
+          if (response.ok) {
+            const t = await response.json();
+            console.log('Token received:', t);
+            setToken(t.token);
+            setWebhookEnabled(true);
+          } else {
+            setWebhookEnabled(false);
+            setToken(null);
+          }
+        } catch (tokenErr) {
+          console.error('Failed to check webhook status:', {
+            message: tokenErr.message,
+            status: tokenErr.message.match(/\d{3}/)?.[0],
+            stack: tokenErr.stack
+          });
+          setWebhookEnabled(false);
+          setToken(null);
+        }
       } catch (e) {
+        console.error('Error loading user data:', {
+          message: e.message,
+          status: e.message.match(/\d{3}/)?.[0],
+          stack: e.stack
+        });
         if (e.message.includes('401') || e.message.includes('403') || e.message.includes('Failed to fetch')) {
-          setError('You are not logged in. Please log in or sign up to access this page.');
+          setError('You are not authenticated. Please log in or sign up.');
+        } else if (e.message.includes('404')) {
+          setError('User data not found. Please contact support.');
         } else {
-          setError(e.message);
+          setError('An error occurred while loading the page. Please try again later.');
         }
       } finally {
         setLoading(false);
@@ -70,31 +124,32 @@ export default function UserPage() {
     load();
   }, []);
 
+  // Save chat messages to localStorage
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
   }, [chatMessages]);
 
+  // Restore and save theme
   useEffect(() => {
-    // Restore theme from localStorage on mount
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
       setTheme(savedTheme);
     } else {
-      setTheme('dark'); // Default to dark if no theme is saved
+      setTheme('dark');
     }
   }, [setTheme]);
 
   useEffect(() => {
-    // Save theme to localStorage whenever it changes
     localStorage.setItem('theme', theme);
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
   }, [theme]);
 
+  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
-        setThemeOptionsOpen(false); // Close theme options if open
+        setThemeOptionsOpen(false);
       }
     };
 
@@ -107,6 +162,56 @@ export default function UserPage() {
     };
   }, [dropdownOpen]);
 
+  // WebSocket for feedback stages
+  useEffect(() => {
+    if (!user || error || loading || !webhookEnabled) return;
+
+    const socket = new SockJS('/ws-feedback');
+    const client = new Client({
+      webSocketFactory: () => socket,
+      reconnectDelay: 5000,
+      debug: () => {}
+    });
+
+    client.onConnect = () => {
+      const username = user.username;
+      client.subscribe(`/topic/feedback/${username}`, msg => {
+        const body = JSON.parse(msg.body);
+        if (body.status === 'done') {
+          setStage('Done');
+          setDone(true);
+          client.deactivate();
+        } else if (body.stage) {
+          setStage(body.stage);
+        }
+      });
+    };
+
+    client.activate();
+    return () => client.deactivate();
+  }, [user, error, loading, webhookEnabled]);
+
+  // Handle webhook toggle
+  const handleWebhookToggle = async (checked) => {
+    try {
+      if (checked) {
+        const t = await enableWebhookToken();
+        setToken(t.token || t);
+        setWebhookEnabled(true);
+      } else {
+        await disableWebhookToken();
+        setToken(null);
+        setWebhookEnabled(false);
+        setStage(null);
+        setDone(false);
+      }
+    } catch (e) {
+      console.error('Error toggling webhook:', e);
+      setError(`Failed to ${checked ? 'enable' : 'disable'} webhook. Please try again.`);
+      setWebhookEnabled(!checked);
+    }
+  };
+
   const handleSend = async () => {
     const text = chatInput.trim();
     if (!text || !user?.aiModel) return;
@@ -117,19 +222,40 @@ export default function UserPage() {
       const aiReply = await sendChat(user.aiModel.ai, user.aiModel.model, history);
       setChatMessages(prev => [...prev, { sender: 'ai', text: aiReply }]);
     } catch (err) {
-      setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Eroare la chat.' }]);
+      setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Chat error.' }]);
     }
   };
 
   const handleLogout = async () => {
     try {
-      await fetch('/logout', { method: 'POST', credentials: 'include' });
-    } catch {}
-    finally {
-      setUser(null);
-      localStorage.removeItem('chatMessages');
-      navigate('/');
+      if (webhookEnabled) {
+        try {
+          await disableWebhookToken();
+        } catch (tokenErr) {
+          console.error('Failed to disable webhook token:', tokenErr);
+        }
+      }
+      const response = await fetch('/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`Logout request failed: ${response.status} - ${await response.text()}`);
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      setError('Failed to log out. Please try again.');
+      return;
     }
+    setUser(null);
+    setToken(null);
+    setWebhookEnabled(false);
+    setStage(null);
+    setDone(false);
+    localStorage.clear();
+    document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/'; 
+    navigate('/');
   };
 
   const handleSwitchToAdmin = () => navigate('/admin');
@@ -161,7 +287,7 @@ export default function UserPage() {
   if (error) {
     return (
       <div className={`min-h-screen flex items-center justify-center ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'}`}>
-        <div className={`bg-${theme === 'light' ? 'white/70' : 'black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
+        <div className={`bg-${theme === 'light' ? 'white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
           <h3 className="text-lg font-semibold mb-4">Authentication Required</h3>
           <p className="mb-4">{error}</p>
           <div className="space-x-4">
@@ -285,12 +411,19 @@ export default function UserPage() {
               <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>{user.email}</p>
             </div>
 
+            {/* Current AI Model card */}
+            <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
+              <h4 className={`text-lg font-semibold mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Current AI Model:</h4>
+              <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
+              </p>
+            </div>
+
             {/* AI model picker */}
             <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 flex flex-col`}>
               <h4 className={`text-lg font-semibold mb-4 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
                 Choose Your AI Model
               </h4>
-
               <div className="flex flex-col gap-3">
                 {uniqueAis.map(ai => (
                   <DropdownButton
@@ -323,13 +456,54 @@ export default function UserPage() {
           <div className="lg:col-span-3">
             <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
               <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
-              <div className="flex gap-4 items-center">
-                <Link to="/create-pr" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition font-medium no-underline`}>
-                  Create PR
-                </Link>
-                <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm`}>
-                  Current Model: <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
+              <div className="flex flex-col gap-2 items-center">
+                {/* Webhook switch and components */}
+                <div className="flex gap-4 items-center">
+                  <Link
+                    to="/create-pr"
+                    className={`text-sm ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'} no-underline`}
+                  >
+                    How to use?
+                  </Link>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <Switch
+                      id="webhook-switch"
+                      onChange={handleWebhookToggle}
+                      checked={webhookEnabled}
+                      onColor={theme === 'light' ? '#2563eb' : '#7c3aed'}
+                      offColor={theme === 'light' ? '#9ca3af' : '#4b5563'}
+                      handleDiameter={20}
+                      uncheckedIcon={false}
+                      checkedIcon={false}
+                      height={24}
+                      width={48}
+                    />
+                    <span className={`ml-2 text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                      {webhookEnabled ? 'Enabled' : 'Disabled'}
+                    </span>
+                  </label>
                 </div>
+                <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
+                  {webhookEnabled ? (
+                    <span>
+                      Active Token: <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
+                    </span>
+                  ) : (
+                    <span>Your session is disabled</span>
+                  )}
+                </div>
+                {webhookEnabled && stage && (
+                  <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
+                    <h5 className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stage}</h5>
+                    {!done && <Spinner animation="border" role="status" className={`my-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />}
+                    {done && (
+                      <Alert variant="success" className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} text-${theme === 'light' ? 'black' : 'white'} rounded p-2 flex items-center justify-center`}>
+                        <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                        <span>Done!</span>
+                      </Alert>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -428,7 +602,7 @@ export default function UserPage() {
         </div>
       </footer>
 
-      {/* Animations */}
+      {/* Animations and Styles */}
       <style jsx global>{`
         @keyframes gradient-x {
           0%, 100% { background-position: 0% 50%; }
@@ -444,14 +618,12 @@ export default function UserPage() {
         .animate-spin {
           animation: spin 1s linear infinite;
         }
-
         .ai-dropdown .btn {
           background-color: transparent;
           border-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)'};
           color: ${theme === 'light' ? 'black' : 'white'};
           width: 100%;
         }
-        
         .ai-dropdown .btn:hover {
           background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
         }
@@ -463,10 +635,10 @@ export default function UserPage() {
           color: ${theme === 'light' ? 'black' : 'white'};
         }
         .ai-dropdown .dropdown-item:hover {
-          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'}; /* Blue hover for light, purple for dark */
+          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
         }
         .ai-dropdown .dropdown-item.active {
-          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'}; /* Blue active for light, purple for dark */
+          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
         }
       `}</style>
     </div>
