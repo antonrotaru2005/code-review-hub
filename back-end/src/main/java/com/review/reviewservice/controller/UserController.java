@@ -229,7 +229,7 @@ public class UserController {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
         if (aspects == null || aspects.isEmpty()) {
-            // Păstrează valorile implicite
+            // Default values
         } else {
             user.setReviewAspectsList(aspects);
         }
