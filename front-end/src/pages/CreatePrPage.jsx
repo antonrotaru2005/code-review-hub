@@ -1,102 +1,75 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { Container, Card, Spinner, Alert } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
-import { FaCheckCircle, FaInfoCircle, FaLink, FaCheck, FaSave } from 'react-icons/fa';
-import { getUserInfo, getWebhookToken } from '../api/user';
-import { Link } from 'react-router-dom';
+import { Container, Card } from 'react-bootstrap';
+import { useNavigate, Link } from 'react-router-dom';
+import { FaInfoCircle, FaLink, FaCheck, FaSave } from 'react-icons/fa';
+import { getUserInfo } from '../api/user';
 import { useTheme } from '../contexts/ThemeContext';
 
 export default function CreatePrPage() {
   const [user, setUser] = useState(null);
-  const [stage, setStage] = useState('Waiting for PR...');
-  const [done, setDone] = useState(false);
-  const [token, setToken] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const [webhookToken, setWebhookToken] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const didFetchRef = useRef(false);
   const navigate = useNavigate();
   const { theme } = useTheme();
 
-  // 1. Fetch the user data for the username
+  // Fetch user data and webhook token
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
 
-    async function fetchUser() {
+    async function fetchData() {
       try {
         const userData = await getUserInfo();
-        if (!userData) {
-          throw new Error('You are not logged in. Please log in or sign up to access this page.');
+        if (!userData || !userData.username) {
+          throw new Error('401');
         }
         setUser(userData);
-        const t = await getWebhookToken();
-        setToken(t);
+
+        // Fetch webhook token
+        try {
+          const response = await fetch('/api/user/webhook-token', {
+            method: 'GET',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' }
+          });
+          console.log('Response GET /api/user/webhook-token:', { status: response.status });
+          if (response.ok) {
+            const data = await response.json();
+            setWebhookToken(data.token);
+          } else {
+            setWebhookToken(null);
+          }
+        } catch (tokenErr) {
+          console.error('Failed to fetch webhook token:', {
+            message: tokenErr.message,
+            status: tokenErr.message.match(/\d{3}/)?.[0],
+            stack: tokenErr.stack
+          });
+          setWebhookToken(null);
+        }
       } catch (err) {
-        console.error('Error fetching user:', err, { message: err.message, status: err.status });
+        console.error('Error fetching user data:', {
+          message: err.message,
+          status: err.status
+        });
         setError('You are not logged in. Please log in or sign up to access this page.');
       } finally {
         setLoading(false);
       }
     }
-    fetchUser();
+    fetchData();
   }, []);
 
-  // 2. Initialize WebSocket connection and subscribe using username
-  useEffect(() => {
-    if (!user || error || loading) return;
-
-    const socket = new SockJS('/ws-feedback');
-    const client = new Client({
-      webSocketFactory: () => socket,
-      reconnectDelay: 5000,
-      debug: () => {}
-    });
-
-    client.onConnect = () => {
-      const username = user.username;
-      client.subscribe(`/topic/feedback/${username}`, msg => {
-        const body = JSON.parse(msg.body);
-        if (body.status === 'done') {
-          setStage('Done');
-          setDone(true);
-          client.deactivate();
-        } else if (body.stage) {
-          setStage(body.stage);
-        }
-      });
-    };
-
-    client.activate();
-    return () => client.deactivate();
-  }, [user, error, loading]);
-
-  // 3. Redirect at the end
-  useEffect(() => {
-    if (done && !error && !loading) {
-      const timer = setTimeout(() => navigate('/user'), 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [done, navigate, error, loading]);
-
-  // 4. Copy to clipboard and show message
-  const handleCopyLink = () => {
-    if (token && !error && !loading) {
-      const link = `${window.location.origin}/webhook/bitbucket/${token}`;
-      navigator.clipboard.writeText(link);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    }
-  };
-
+  // Handle logout
   const handleLogout = async () => {
     try {
       await fetch('/logout', { method: 'POST', credentials: 'include' });
     } catch {}
     finally {
       setUser(null);
+      setWebhookToken(null);
       setError(null);
       setLoading(false);
       navigate('/');
@@ -134,14 +107,14 @@ export default function CreatePrPage() {
           )}
         </div>
         <div className={`relative z-10 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
-          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Authentication Required</h3>
-          <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>You are not logged in. Please log in or sign up to access this page.</p>
+          <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Error</h3>
+          <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>{error}</p>
           <div className="space-x-4">
+            <Link to="/user" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
+              Return to User Page
+            </Link>
             <Link to="/login" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
               Log In
-            </Link>
-            <Link to="/signup" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
-              Sign Up
             </Link>
           </div>
         </div>
@@ -162,27 +135,36 @@ export default function CreatePrPage() {
       </div>
 
       {/* Navbar */}
-      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'}`}>
-        <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
+      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6`}>
+        <Link
+          to="/"
+          className={`text-2xl sm:text-3xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}
+        >
           Code Review Hub
         </Link>
-        <div className="relative">
+        <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
           <span
-            className={`${theme === 'light' ? 'text-black/80 hover:text-blue-400' : 'text-white/80 hover:text-purple-400'} transition-colors cursor-pointer`}
+            className={`w-full sm:w-auto text-center px-2 py-2 ${theme === 'light' ? 'text-black/80 hover:text-black' : 'text-white/80 hover:text-white'} transition-colors cursor-pointer no-underline`}
             onClick={handleLogout}
           >
             Log Out
           </span>
+          <Link
+            to="/signup"
+            className={`w-full sm:w-auto px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all no-underline`}
+          >
+            Sign Up
+          </Link>
         </div>
       </nav>
 
-      <main className={`relative z-40 px-6 py-4 flex-grow flex items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-black'}`}>
+      <main className={`relative z-40 px-6 py-4 flex-grow flex items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-transparent'}`}>
         <Container className="text-center max-w-lg">
-          <Card className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-2xl p-4 shadow-lg`}>
+          <Card className={`bg-transparent border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-2xl p-4 shadow-lg`}>
             <Card.Header className={`bg-gradient-to-r ${theme === 'light' ? 'from-blue-800 to-blue-900' : 'from-purple-800 to-indigo-900'} text-${theme === 'light' ? 'white' : 'white'} text-lg font-bold py-3 rounded-t-2xl flex items-center`}>
               <FaInfoCircle className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-300' : 'text-purple-300'}`} />
               Configuration Instructions
-            </Card.Header >
+            </Card.Header>
             <Card.Body className={`text-${theme === 'light' ? 'black' : 'white'} space-y-2`}>
               <ol className="list-decimal pl-5 space-y-2 text-sm">
                 <li className="flex items-start">
@@ -193,23 +175,20 @@ export default function CreatePrPage() {
                   <FaLink className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
                   <span className={theme === 'light' ? 'text-black' : 'text-white'}>
                     <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Add a new webhook with URL:</strong>{" "}
-                    {token ? (
-                      <strong>
-                        <code
-                          className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} text-${theme === 'light' ? 'black' : 'white'} px-1.5 py-0.5 rounded-lg shadow-sm hover:${theme === 'light' ? 'bg-blue-200/50' : 'bg-purple-900/50'} transition duration-200 cursor-pointer`}
-                          onClick={handleCopyLink}
-                        >
-                          {window.location.origin}/webhook/bitbucket/{token}
-                        </code>
-                      </strong>
+                    {webhookToken ? (
+                      <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} text-${theme === 'light' ? 'text-black' : 'text-white'} px-1.5 py-0.5 rounded-lg shadow-sm`}>
+                        localhost:8080/webhook/bitbucket/{webhookToken}
+                      </code>
                     ) : (
-                      <em className={theme === 'light' ? 'text-blue-400/70' : 'text-purple-400/70'} italic>Generating your one-time link…</em>
+                      <span>
+                        <span className={theme === 'light' ? 'text-red-600' : 'text-red-400'}>Webhook inactive. </span>
+                        <Link to="/user" className={`underline ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-400 hover:text-purple-300'}`}>
+                          Activate the webhook on the user page.
+                        </Link>
+                      </span>
                     )}
                   </span>
                 </li>
-                {copied && (
-                  <div className={`${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} text-xs mt-1`}>Copied to clipboard</div>
-                )}
                 <li className="flex items-start">
                   <FaCheck className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
                   <span className={theme === 'light' ? 'text-black' : 'text-white'}>Select <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Pull Request events</strong> (created, updated).</span>
@@ -221,17 +200,16 @@ export default function CreatePrPage() {
                   </span>
                 </li>
               </ol>
+              <div className="mt-4">
+                <Link
+                  to="/user"
+                  className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}
+                >
+                  Return to User Page
+                </Link>
+              </div>
             </Card.Body>
           </Card>
-
-          <h5 className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'} mt-4`}>{stage}</h5>
-          {!done && <Spinner animation="border" role="status" className={`my-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />}
-          {done && (
-            <Alert variant="success" className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} text-${theme === 'light' ? 'black' : 'white'} rounded-2xl p-3 mt-4 flex items-center justify-center`}>
-              <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
-              <span>Done!</span>
-            </Alert>
-          )}
         </Container>
       </main>
 
@@ -252,18 +230,16 @@ export default function CreatePrPage() {
           background-size: 200% 200%;
           animation: gradient-x 15s ease infinite;
         }
-        /* Override Bootstrap Card styles */
         .card {
           background-color: transparent !important;
         }
         .card-header {
-          background: linear-gradient(to right, ${theme === 'light' ? '#1e40af #1e3a8a' : '#5b21b6 #312e81'}) !important; /* Matches from-blue-800 to-blue-900 or from-purple-800 to-indigo-900 */
+          background: linear-gradient(to right, ${theme === 'light' ? '#1e40af, #1e3a8a' : '#5b21b6, #312e81'}) !important;
           border-bottom: none !important;
         }
         .card-body {
           background-color: transparent !important;
         }
-        /* Ensure theme-specific background for body */
         html, body {
           background-color: ${theme === 'light' ? '#ffffff' : '#000000'} !important;
         }
