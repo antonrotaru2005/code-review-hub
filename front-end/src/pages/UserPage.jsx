@@ -6,7 +6,7 @@ import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken 
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import { Card, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import { Card, DropdownButton, Dropdown, Spinner, Container } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -30,13 +30,22 @@ export default function UserPage() {
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   const [token, setToken] = useState(null);
-  const [stage, setStage] = useState(null);
+  const [currentStage, setCurrentStage] = useState(null);
   const [done, setDone] = useState(false);
+  const [showFeedbackCard, setShowFeedbackCard] = useState(false);
   const [collapsedFeedbacks, setCollapsedFeedbacks] = useState({});
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const didFetchRef = useRef(false);
+
+  const stages = [
+    'Processing PR',
+    'Files fetched',
+    'AI Code Analysis',
+    'Saving feedback',
+    'Done'
+  ];
 
   const aiModels = [
     { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini', label: 'GPT-4o-mini' },
@@ -53,7 +62,6 @@ export default function UserPage() {
   ];
 
   const groupByRepo = (feedbacks) => {
-    // Sort feedbacks by ID in descending order (most recent first)
     const sortedFeedbacks = [...feedbacks].sort((a, b) => b.id - a.id);
     return sortedFeedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
@@ -61,7 +69,6 @@ export default function UserPage() {
     }, {});
   };
 
-  // Toggle collapse state for a specific feedback
   const toggleCollapse = (feedbackId) => {
     setCollapsedFeedbacks((prev) => ({
       ...prev,
@@ -69,7 +76,6 @@ export default function UserPage() {
     }));
   };
 
-  // Load user, feedbacks, and webhook status
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
@@ -81,7 +87,6 @@ export default function UserPage() {
         try {
           const fbs = await getUserFeedbacks(u.username);
           setFeedbacks(fbs);
-          // Initialize collapsed state for all feedbacks
           setCollapsedFeedbacks(
             fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: false }), {})
           );
@@ -106,6 +111,7 @@ export default function UserPage() {
             console.log('Token received:', t);
             setToken(t.token);
             setWebhookEnabled(true);
+            setShowFeedbackCard(true); // Show card on page load if webhook is enabled
           } else {
             setWebhookEnabled(false);
             setToken(null);
@@ -139,12 +145,10 @@ export default function UserPage() {
     load();
   }, []);
 
-  // Save chat messages to localStorage
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
   }, [chatMessages]);
 
-  // Restore and save theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
@@ -159,7 +163,6 @@ export default function UserPage() {
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
   }, [theme]);
 
-  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -177,7 +180,6 @@ export default function UserPage() {
     };
   }, [dropdownOpen]);
 
-  // WebSocket for feedback stages
   useEffect(() => {
     if (!user || error || loading || !webhookEnabled) return;
 
@@ -193,11 +195,24 @@ export default function UserPage() {
       client.subscribe(`/topic/feedback/${username}`, msg => {
         const body = JSON.parse(msg.body);
         if (body.status === 'done') {
-          setStage('Done');
+          setCurrentStage('Done');
           setDone(true);
-          client.deactivate();
+          setShowFeedbackCard(true);
+          setTimeout(() => {
+            setShowFeedbackCard(false);
+            setCurrentStage(null);
+            setDone(false);
+            // Refresh feedbacks
+            getUserFeedbacks(username).then(fbs => {
+              setFeedbacks(fbs);
+              setCollapsedFeedbacks(
+                fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: false }), {})
+              );
+            });
+          }, 2000);
         } else if (body.stage) {
-          setStage(body.stage);
+          setCurrentStage(body.stage);
+          setShowFeedbackCard(true);
         }
       });
     };
@@ -206,19 +221,20 @@ export default function UserPage() {
     return () => client.deactivate();
   }, [user, error, loading, webhookEnabled]);
 
-  // Handle webhook toggle
   const handleWebhookToggle = async (checked) => {
     try {
       if (checked) {
         const t = await enableWebhookToken();
         setToken(t.token || t);
         setWebhookEnabled(true);
+        setShowFeedbackCard(true); // Show card when webhook is enabled
       } else {
         await disableWebhookToken();
         setToken(null);
         setWebhookEnabled(false);
-        setStage(null);
+        setCurrentStage(null);
         setDone(false);
+        setShowFeedbackCard(false); // Hide card when webhook is disabled
       }
     } catch (e) {
       console.error('Error toggling webhook:', e);
@@ -266,8 +282,9 @@ export default function UserPage() {
     setUser(null);
     setToken(null);
     setWebhookEnabled(false);
-    setStage(null);
+    setCurrentStage(null);
     setDone(false);
+    setShowFeedbackCard(false);
     localStorage.clear();
     document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     navigate('/');
@@ -507,18 +524,6 @@ export default function UserPage() {
                     <span>Your session is disabled</span>
                   )}
                 </div>
-                {webhookEnabled && stage && (
-                  <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
-                    <h5 className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stage}</h5>
-                    {!done && <Spinner animation="border" role="status" className={`my-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />}
-                    {done && (
-                      <Alert variant="success" className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} text-${theme === 'light' ? 'black' : 'white'} rounded p-2 flex items-center justify-center`}>
-                        <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
-                        <span>Done!</span>
-                      </Alert>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
 
@@ -576,6 +581,48 @@ export default function UserPage() {
           </div>
         </div>
       </main>
+
+      {/* Feedback Progress Card */}
+      {showFeedbackCard && (
+        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 w-[280px]">
+          <Card className={`bg-${theme === 'light' ? 'white/80' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-xl p-2 shadow-md`}>
+            <Card.Header className={`bg-gradient-to-r ${theme === 'light' ? 'from-blue-800 to-blue-900' : 'from-purple-800 to-indigo-900'} text-white text-md font-bold py-2 px-3 rounded-t-xl flex items-center justify-center`}>
+              <FaCheckCircle className={`w-4 h-4 mr-1.5 ${theme === 'light' ? 'text-blue-300' : 'text-purple-300'}`} />
+              Feedback Progress
+            </Card.Header>
+            <Card.Body className={`text-${theme === 'light' ? 'black' : 'white'} p-2 space-y-1`}>
+              {currentStage ? (
+                <ul className="list-none p-0 m-0">
+                  {stages.map((stage, index) => {
+                    const currentStageIndex = stages.indexOf(currentStage);
+                    const isCurrent = stage === currentStage;
+                    const isCompleted = currentStageIndex > index || (done && stage === 'Done');
+                    return (
+                      <li key={stage} className="flex items-center mb-1">
+                        {isCompleted ? (
+                          <FaCheckCircle size={12} className={`mr-1.5 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                        ) : isCurrent ? (
+                          <Spinner animation="border" className={`mr-1.5 w-3 h-3 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                        ) : (
+                          <div className={`w-3 h-3 rounded-full mr-1.5 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-600'}`}></div>
+                        )}
+                        <span className={`text-xs ${isCompleted || isCurrent ? (theme === 'light' ? 'text-black' : 'text-white') : (theme === 'light' ? 'text-gray-500' : 'text-gray-400')}`}>
+                          {stage}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <div className="flex flex-col items-center">
+                  <Spinner animation="border" className={`my-1 w-4 h-4 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                  <span className="text-xs">Waiting for PR...</span>
+                </div>
+              )}
+            </Card.Body>
+          </Card>
+        </div>
+      )}
 
       {/* Floating AI Chat Button */}
       <button
@@ -683,6 +730,17 @@ export default function UserPage() {
         }
         .ai-dropdown .dropdown-item.active {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
+        }
+        /* Override Bootstrap Card styles for Feedback Progress */
+        .card {
+          background-color: transparent !important;
+        }
+        .card-header {
+          background: linear-gradient(to right, ${theme === 'light' ? '#1e40af, #1e3a8a' : '#5b21b6, #312e81'}) !important;
+          border-bottom: none !important;
+        }
+        .card-body {
+          background-color: transparent !important;
         }
       `}</style>
     </div>
