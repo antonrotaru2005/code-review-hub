@@ -99,22 +99,29 @@ public class CodeReviewService {
     }
 
     /**
-     * Builds a dynamic system prompt for code review based on requested aspects.
+     * Builds a dynamic system prompt for code review based on requested aspects,
+     * plus a final “Rate” aspect (1–100%).
      */
     private String buildSystemPrompt(List<String> aspects) {
         StringBuilder sb = new StringBuilder(
                 """
-                        You are an expert senior code reviewer specializing in Java and modern front-end development.
-                        Review the provided code files **only** for the following aspects, in the order listed. \
-                        Use Markdown with clear headings and concise bullet points for each aspect. \
-                        Focus on actionable feedback, best practices, and potential issues.
-                        
-                        """
+                You are an expert senior code reviewer specializing in Java and modern front-end development.
+                Review the provided code files **only** for the following aspects, in the order listed.
+                Use Markdown with clear headings and concise bullet points for each aspect.
+                Focus on actionable feedback, best practices, and potential issues.
+        
+                """
         );
+        // List user-selected aspects
         for (int i = 0; i < aspects.size(); i++) {
             sb.append("### ").append(i + 1).append(". ").append(aspects.get(i)).append("\n");
         }
-        sb.append("\nProvide specific, concise, and constructive feedback for each aspect.");
+        sb.append("### ")
+                .append(aspects.size() + 1)
+                .append(". Rate\n")
+                .append("On the next line, output ONLY a single integer between 1 and 100, with no other characters.\n\n");
+
+        sb.append("Provide specific, concise, and constructive feedback for each aspect.");
         return sb.toString();
     }
 

@@ -10,5 +10,6 @@ public record FeedbackDto(
         String model,
         LocalDateTime createdAt,
         Long userId,
-        String username
+        String username,
+        int rate
 ) {}

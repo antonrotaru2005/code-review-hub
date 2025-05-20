@@ -6,5 +6,6 @@ public record UserStatsDto(
         int totalFeedbacks,
         double avgCommentLength,
         int distinctRepoCount,
-        LocalDateTime lastFeedbackAt
+        LocalDateTime lastFeedbackAt,
+        double avgRate
 ) {}

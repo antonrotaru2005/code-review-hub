@@ -19,6 +19,8 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @RestController
 @RequestMapping("/webhook")
@@ -94,6 +96,7 @@ public class WebhookController {
         if (feedback != null) {
             Long prId = payload.getPullRequest().getId();
             String repoFullName = payload.getRepository().getFullName();
+            int rate = extractRate(feedback);
 
             // Post comment on PR
             messagingTemplate.convertAndSend(
@@ -104,7 +107,7 @@ public class WebhookController {
             bitbucketService.postCommentToPullRequest(payload, feedback);
 
             // Save feedback to database
-            feedbackService.save(prId, uuid, feedback, model, repoFullName);
+            feedbackService.save(prId, uuid, feedback, model, repoFullName, rate);
 
             messagingTemplate.convertAndSend(
                     "/topic/feedback/" + username,
@@ -113,4 +116,39 @@ public class WebhookController {
         }
         return ResponseEntity.ok("Webhook processed and feedback saved using " + ai + " with model " + model + ".");
     }
+
+    private int extractRate(String feedback) {
+        String[] lines = feedback.split("\\r?\\n");
+        Pattern numPattern = Pattern.compile("\\b(\\d{1,3})\\b");
+
+        for (int i = 0; i < lines.length; i++) {
+            String line = lines[i].toLowerCase();
+            if (line.contains("rate")) {
+                if (i + 1 < lines.length) {
+                    String next = lines[i + 1].trim();
+                    try {
+                        int rate = Integer.parseInt(next.replaceAll("\\D", ""));
+                        return clampRate(rate);
+                    } catch (NumberFormatException ignored) {}
+                }
+                Matcher m = numPattern.matcher(lines[i]);
+                if (m.find()) {
+                    return clampRate(Integer.parseInt(m.group(1)));
+                }
+            }
+        }
+
+        Matcher m = numPattern.matcher(feedback);
+        int last = 0;
+        while (m.find()) {
+            last = Integer.parseInt(m.group(1));
+        }
+        return clampRate(last);
+    }
+
+    private int clampRate(int rate) {
+        if (rate <= 0) return 0;
+        return Math.min(100, rate);
+    }
+
 }

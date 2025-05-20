@@ -25,8 +25,19 @@ public class StatisticsService {
         int repos = feedbackRepository.countDistinctReposByUsername(username);
         LocalDateTime lastAt = feedbackRepository.findLastFeedbackAtByUsername(username);
         LocalDateTime lastFeedbackAt = (lastAt != null ? lastAt : LocalDateTime.MIN);
+        Double avgRateRaw = feedbackRepository.findAvgRateByUsername(username);
+        double avgRate = (avgRateRaw != null ? avgRateRaw : 0);
 
+        double avgRateRounded = Math.round(avgRate * 100.0) / 100.0;
         double avgLenRounded = Math.round(avgLen * 100.0) / 100.0;
-        return new UserStatsDto(total, avgLenRounded, repos, lastFeedbackAt);
+
+        return new UserStatsDto(
+                total,
+                avgLenRounded,
+                repos,
+                lastFeedbackAt,
+                avgRateRounded
+        );
     }
+
 }

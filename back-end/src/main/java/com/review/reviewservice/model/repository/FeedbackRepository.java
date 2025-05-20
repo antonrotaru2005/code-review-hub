@@ -36,4 +36,12 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
       WHERE f.user.username = :username
     """)
     LocalDateTime findLastFeedbackAtByUsername(@Param("username") String username);
+
+    @Query("""
+      SELECT AVG(f.rate)
+      FROM Feedback f
+      WHERE f.user.username = :username
+        AND f.rate > 0
+    """)
+    Double findAvgRateByUsername(@Param("username") String username);
 }
