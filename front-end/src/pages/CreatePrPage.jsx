@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Container, Card } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaInfoCircle, FaLink, FaCheck, FaSave } from 'react-icons/fa';
+import { FaInfoCircle, FaLink, FaCheck, FaSave, FaSun, FaMoon, FaBars, FaTimes } from 'react-icons/fa';
 import { getUserInfo } from '../api/user';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -10,9 +10,10 @@ export default function CreatePrPage() {
   const [webhookToken, setWebhookToken] = useState(null);
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [menuOpen, setMenuOpen] = useState(false);
   const didFetchRef = useRef(false);
   const navigate = useNavigate();
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
 
   // Fetch user data and webhook token
   useEffect(() => {
@@ -76,6 +77,11 @@ export default function CreatePrPage() {
     }
   };
 
+  // Toggle mobile menu
+  const toggleMenu = () => {
+    setMenuOpen(!menuOpen);
+  };
+
   if (loading) {
     return (
       <div className={`relative min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
@@ -134,29 +140,137 @@ export default function CreatePrPage() {
         )}
       </div>
 
-      {/* Navbar */}
-      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex flex-col sm:flex-row justify-between items-center gap-4 sm:gap-6`}>
+      {/* Navigation */}
+      <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center`}>
         <Link
           to="/"
           className={`text-2xl sm:text-3xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}
         >
           Code Review Hub
         </Link>
-        <div className="flex flex-col sm:flex-row items-center sm:space-x-4 space-y-2 sm:space-y-0 w-full sm:w-auto">
-          <span
-            className={`w-full sm:w-auto text-center px-2 py-2 ${theme === 'light' ? 'text-black/80 hover:text-black' : 'text-white/80 hover:text-white'} transition-colors cursor-pointer no-underline`}
-            onClick={handleLogout}
-          >
-            Log Out
-          </span>
-          <Link
-            to="/signup"
-            className={`w-full sm:w-auto px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all no-underline`}
-          >
-            Sign Up
-          </Link>
+        {/* Desktop Navbar */}
+        <div className="hidden sm:flex items-center space-x-6">
+          <div className="flex space-x-2">
+            <button
+              onClick={() => toggleTheme('light')}
+              className={`p-2 rounded-full ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'} transition-colors`}
+              title="Switch to Light Theme"
+            >
+              <FaSun size={20} />
+            </button>
+            <button
+              onClick={() => toggleTheme('dark')}
+              className={`p-2 rounded-full ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-600 text-gray-300 hover:bg-blue-500'} transition-colors`}
+              title="Switch to Dark Theme"
+            >
+              <FaMoon size={20} />
+            </button>
+          </div>
+          {user ? (
+            <div className="flex items-center space-x-4">
+              <Link to="/user" className="flex-shrink-0">
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt="User avatar"
+                    className={`w-10 h-10 rounded-full object-cover border-2 ${theme === 'light' ? 'border-blue-600 hover:border-blue-400' : 'border-purple-600 hover:border-purple-400'} transition-colors`}
+                  />
+                ) : (
+                  <div className={`w-10 h-10 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'} text-white rounded-full flex items-center justify-center text-lg font-bold transition-all`}>
+                    {user.name[0].toUpperCase()}
+                  </div>
+                )}
+              </Link>
+              <button
+                onClick={handleLogout}
+                className={`px-4 py-2 border ${theme === 'light' ? 'border-blue-600 hover:bg-blue-600 text-black hover:text-white' : 'border-purple-600 hover:bg-purple-600 text-white'} rounded-full transition-colors`}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link to="/login" className={`text-center ${theme === 'light' ? 'text-black/80 hover:text-black' : 'text-white/80 hover:text-white'} transition-colors no-underline`}>
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className={`px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all no-underline`}
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
+        {/* Mobile Burger Button */}
+        <button className="sm:hidden p-2" onClick={toggleMenu}>
+          {menuOpen ? <FaTimes size={24} className={theme === 'light' ? 'text-black' : 'text-white'} /> : <FaBars size={24} className={theme === 'light' ? 'text-black' : 'text-white'} />}
+        </button>
       </nav>
+      {/* Mobile Menu */}
+      {menuOpen && (
+        <div className={`sm:hidden flex flex-col items-center space-y-4 pb-4 ${theme === 'light' ? 'bg-white' : 'bg-black'} border-t border-${theme === 'light' ? 'black/10' : 'purple-500/30'}`}>
+          <div className="flex space-x-2">
+            <button
+              onClick={() => toggleTheme('light')}
+              className={`p-2 rounded-full ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'} transition-colors`}
+              title="Switch to Light Theme"
+            >
+              <FaSun size={20} />
+            </button>
+            <button
+              onClick={() => toggleTheme('dark')}
+              className={`p-2 rounded-full ${theme === 'dark' ? 'bg-gray-800 text-white' : 'bg-blue-600 text-gray-300 hover:bg-blue-500'} transition-colors`}
+              title="Switch to Dark Theme"
+            >
+              <FaMoon size={20} />
+            </button>
+          </div>
+          {user ? (
+            <div className="flex flex-col items-center space-y-4">
+              <Link to="/user" className="flex-shrink-0" onClick={toggleMenu}>
+                {user.avatar ? (
+                  <img
+                    src={user.avatar}
+                    alt="User avatar"
+                    className={`w-10 h-10 rounded-full object-cover border-2 ${theme === 'light' ? 'border-blue-600 hover:border-blue-400' : 'border-purple-600 hover:border-purple-400'} transition-colors`}
+                  />
+                ) : (
+                  <div className={`w-10 h-10 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500' : 'bg-purple-600 hover:bg-purple-500'} text-white rounded-full flex items-center justify-center text-lg font-bold transition-all`}>
+                    {user.name[0].toUpperCase()}
+                  </div>
+                )}
+              </Link>
+              <button
+                onClick={() => {
+                  handleLogout();
+                  toggleMenu();
+                }}
+                className={`px-4 py-2 border ${theme === 'light' ? 'border-blue-600 hover:bg-blue-600 text-black hover:text-white' : 'border-purple-600 hover:bg-purple-600 text-white'} rounded-full transition-colors`}
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            <>
+              <Link
+                to="/login"
+                className={`text-center ${theme === 'light' ? 'text-black/80 hover:text-black' : 'text-white/80 hover:text-white'} transition-colors no-underline`}
+                onClick={toggleMenu}
+              >
+                Login
+              </Link>
+              <Link
+                to="/signup"
+                className={`px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all no-underline`}
+                onClick={toggleMenu}
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
       <main className={`relative z-40 px-6 py-4 flex-grow flex items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-transparent'}`}>
         <Container className="text-center max-w-lg">
