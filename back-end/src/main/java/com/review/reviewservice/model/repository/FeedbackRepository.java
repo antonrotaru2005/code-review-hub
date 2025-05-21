@@ -44,4 +44,11 @@ public interface FeedbackRepository extends JpaRepository<Feedback, Long> {
         AND f.rate > 0
     """)
     Double findAvgRateByUsername(@Param("username") String username);
+
+    @Query("""
+      SELECT DISTINCT f.repoFullName
+      FROM Feedback f
+      WHERE f.user.username = :username
+    """)
+    List<String> findDistinctRepoFullNamesByUsername(@Param("username") String username);
 }
