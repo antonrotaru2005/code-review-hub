@@ -6,7 +6,7 @@ import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken 
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import { Card, DropdownButton, Dropdown, Spinner, Container } from 'react-bootstrap';
+import { Card, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -30,22 +30,15 @@ export default function UserPage() {
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
   const [webhookEnabled, setWebhookEnabled] = useState(false);
   const [token, setToken] = useState(null);
-  const [currentStage, setCurrentStage] = useState(null);
+  const [stage, setStage] = useState(null);
   const [done, setDone] = useState(false);
-  const [showFeedbackCard, setShowFeedbackCard] = useState(false);
+  const [popup, setPopup] = useState({ visible: false, stage: null, prId: null });
   const [collapsedFeedbacks, setCollapsedFeedbacks] = useState({});
+  const feedbackRefs = useRef({});
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
   const didFetchRef = useRef(false);
-
-  const stages = [
-    'Processing PR',
-    'Files fetched',
-    'AI Code Analysis',
-    'Saving feedback',
-    'Done'
-  ];
 
   const aiModels = [
     { id: 1, ai: 'ChatGPT', model: 'gpt-4o-mini', label: 'GPT-4o-mini' },
@@ -61,21 +54,37 @@ export default function UserPage() {
     { id: 11, ai: 'Gemini', model: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   ];
 
+  // Groups feedbacks by repoFullName and sorts by createdAt (or id) in descending order
   const groupByRepo = (feedbacks) => {
-    const sortedFeedbacks = [...feedbacks].sort((a, b) => b.id - a.id);
-    return sortedFeedbacks.reduce((acc, fb) => {
+    const grouped = feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
       return acc;
     }, {});
+    Object.keys(grouped).forEach(repo => {
+      grouped[repo].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : a.id;
+        return bTime - aTime; // Descending order
+      });
+    });
+    return Object.fromEntries(
+      Object.entries(grouped).sort(([, a], [, b]) => {
+        const aTime = a[0]?.createdAt ? new Date(a[0].createdAt).getTime() : a[0]?.id;
+        const bTime = b[0]?.createdAt ? new Date(b[0].createdAt).getTime() : b[0]?.id;
+        return bTime - aTime; // Descending order
+      })
+    );
   };
 
+  // Toggles the collapse state for an individual feedback item
   const toggleCollapse = (feedbackId) => {
-    setCollapsedFeedbacks((prev) => ({
+    setCollapsedFeedbacks(prev => ({
       ...prev,
       [feedbackId]: !prev[feedbackId],
     }));
   };
 
+  // Load user, feedbacks, and webhook status
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
@@ -87,8 +96,9 @@ export default function UserPage() {
         try {
           const fbs = await getUserFeedbacks(u.username);
           setFeedbacks(fbs);
+          // Initialize all feedbacks as collapsed by default
           setCollapsedFeedbacks(
-            fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: false }), {})
+            fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: true }), {})
           );
         } catch (fbErr) {
           console.error('Failed to load feedbacks:', {
@@ -98,6 +108,7 @@ export default function UserPage() {
             username: u.username
           });
           setFeedbacks([]);
+          setCollapsedFeedbacks({});
         }
         try {
           const response = await fetch('/api/user/webhook-token', {
@@ -111,7 +122,6 @@ export default function UserPage() {
             console.log('Token received:', t);
             setToken(t.token);
             setWebhookEnabled(true);
-            setShowFeedbackCard(true); // Show card on page load if webhook is enabled
           } else {
             setWebhookEnabled(false);
             setToken(null);
@@ -145,10 +155,12 @@ export default function UserPage() {
     load();
   }, []);
 
+  // Save chat messages to localStorage
   useEffect(() => {
     localStorage.setItem('chatMessages', JSON.stringify(chatMessages));
   }, [chatMessages]);
 
+  // Restore and save theme
   useEffect(() => {
     const savedTheme = localStorage.getItem('theme');
     if (savedTheme && ['light', 'dark'].includes(savedTheme)) {
@@ -163,6 +175,7 @@ export default function UserPage() {
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
   }, [theme]);
 
+  // Close dropdown on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
@@ -180,6 +193,7 @@ export default function UserPage() {
     };
   }, [dropdownOpen]);
 
+  // WebSocket for feedback stages and PR creation
   useEffect(() => {
     if (!user || error || loading || !webhookEnabled) return;
 
@@ -192,27 +206,35 @@ export default function UserPage() {
 
     client.onConnect = () => {
       const username = user.username;
-      client.subscribe(`/topic/feedback/${username}`, msg => {
+      client.subscribe(`/topic/feedback/${username}`, async (msg) => {
         const body = JSON.parse(msg.body);
-        if (body.status === 'done') {
-          setCurrentStage('Done');
+        if (body.stage && body.status !== 'done') {
+          setStage(body.stage);
+          setDone(false);
+          setPopup({ visible: true, stage: body.stage, prId: null });
+        } else if (body.status === 'done') {
+          setStage('Done');
           setDone(true);
-          setShowFeedbackCard(true);
+          setPopup({ visible: true, stage: 'Done', prId: body.prId });
+          try {
+            const fbs = await getUserFeedbacks(username);
+            setFeedbacks(fbs);
+            // Update collapsedFeedbacks, collapsing new feedbacks by default
+            setCollapsedFeedbacks(prev => ({
+              ...prev,
+              ...fbs.reduce((acc, fb) => ({
+                ...acc,
+                [fb.id]: prev[fb.id] !== undefined ? prev[fb.id] : true
+              }), {})
+            }));
+          } catch (fbErr) {
+            console.error('Failed to refresh feedbacks:', fbErr);
+          }
           setTimeout(() => {
-            setShowFeedbackCard(false);
-            setCurrentStage(null);
+            setPopup({ visible: false, stage: null, prId: null });
+            setStage(null);
             setDone(false);
-            // Refresh feedbacks
-            getUserFeedbacks(username).then(fbs => {
-              setFeedbacks(fbs);
-              setCollapsedFeedbacks(
-                fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: false }), {})
-              );
-            });
           }, 2000);
-        } else if (body.stage) {
-          setCurrentStage(body.stage);
-          setShowFeedbackCard(true);
         }
       });
     };
@@ -221,20 +243,31 @@ export default function UserPage() {
     return () => client.deactivate();
   }, [user, error, loading, webhookEnabled]);
 
+  // Update feedback content heights for animation
+  useEffect(() => {
+    Object.keys(feedbackRefs.current).forEach(id => {
+      const el = feedbackRefs.current[id];
+      if (el) {
+        el.style.maxHeight = collapsedFeedbacks[id]
+          ? '0px'
+          : `${el.scrollHeight}px`;
+      }
+    });
+  }, [collapsedFeedbacks, feedbacks]);
+
   const handleWebhookToggle = async (checked) => {
     try {
       if (checked) {
         const t = await enableWebhookToken();
         setToken(t.token || t);
         setWebhookEnabled(true);
-        setShowFeedbackCard(true); // Show card when webhook is enabled
       } else {
         await disableWebhookToken();
         setToken(null);
         setWebhookEnabled(false);
-        setCurrentStage(null);
+        setStage(null);
         setDone(false);
-        setShowFeedbackCard(false); // Hide card when webhook is disabled
+        setPopup({ visible: false, stage: null, prId: null });
       }
     } catch (e) {
       console.error('Error toggling webhook:', e);
@@ -282,9 +315,9 @@ export default function UserPage() {
     setUser(null);
     setToken(null);
     setWebhookEnabled(false);
-    setCurrentStage(null);
+    setStage(null);
     setDone(false);
-    setShowFeedbackCard(false);
+    setPopup({ visible: false, stage: null, prId: null });
     localStorage.clear();
     document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     navigate('/');
@@ -345,6 +378,28 @@ export default function UserPage() {
         <div className="absolute inset-0 z-0 opacity-30">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-transparent via-black/50 to-black opacity-70"></div>
+        </div>
+      )}
+
+      {/* Pop-up Notification */}
+      {popup.visible && (
+        <div
+          className={`fixed top-5 left-50% w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <div className="flex items-center justify-center">
+            {popup.stage !== 'Done' ? (
+              <>
+                <Spinner animation="border" className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>{popup.stage}</span>
+              </>
+            ) : (
+              <div className="flex items-center">
+                <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>Done</span>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -424,7 +479,6 @@ export default function UserPage() {
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Sidebar */}
           <div className="lg:col-span-1 flex flex-col gap-6">
-            {/* Profile card */}
             <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 text-center`}>
               {user.avatar ? (
                 <img
@@ -443,7 +497,6 @@ export default function UserPage() {
               <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>{user.email}</p>
             </div>
 
-            {/* Current AI Model card */}
             <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
               <h4 className={`text-lg font-semibold mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Current AI Model:</h4>
               <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
@@ -451,7 +504,6 @@ export default function UserPage() {
               </p>
             </div>
 
-            {/* AI model picker */}
             <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 flex flex-col`}>
               <h4 className={`text-lg font-semibold mb-4 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
                 Choose Your AI Model
@@ -489,7 +541,6 @@ export default function UserPage() {
             <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
               <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
               <div className="flex flex-col gap-2 items-center">
-                {/* Webhook switch and components */}
                 <div className="flex gap-4 items-center">
                   <Link
                     to="/create-pr"
@@ -518,12 +569,24 @@ export default function UserPage() {
                 <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
                   {webhookEnabled ? (
                     <span>
-                      Active Token: <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
+                      Active Token: <code className={` ##### bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
                     </span>
                   ) : (
                     <span>Your session is disabled</span>
                   )}
                 </div>
+                {webhookEnabled && stage && !popup.visible && (
+                  <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
+                    <h5 className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stage}</h5>
+                    {!done && <Spinner animation="border" role="status" className={`my-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />}
+                    {done && (
+                      <Alert variant="success" className={`bg-${theme === 'light' ? 'white/70' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} text-${theme === 'light' ? 'black' : 'white'} rounded p-2 flex items-center justify-center`}>
+                        <FaCheckCircle size={20} className={`mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
+                        <span>Done!</span>
+                      </Alert>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
@@ -535,43 +598,30 @@ export default function UserPage() {
                   <h4 className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-lg mb-2`}>{repo}</h4>
                   <div className="space-y-4">
                     {items.map(fb => (
-                      <div
-                        key={fb.id}
-                        className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 relative`}
-                      >
-                        <button
-                          onClick={() => toggleCollapse(fb.id)}
-                          className={`absolute top-2 right-2 p-2 rounded-full ${theme === 'light' ? 'text-blue-600 hover:bg-blue-100' : 'text-purple-600 hover:bg-purple-900'}`}
-                          title={collapsedFeedbacks[fb.id] ? 'Expand' : 'Collapse'}
+                      <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
+                        <div className="flex items-center justify-between">
+                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 truncate`}>Pull Request #{fb.prId} – {fb.model}</h5>
+                          <button
+                            onClick={() => toggleCollapse(fb.id)}
+                            className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                            aria-label={`Toggle feedback for PR ${fb.prId}`}
+                            aria-expanded={!collapsedFeedbacks[fb.id]}
+                          >
+                            {collapsedFeedbacks[fb.id] ? <FaChevronDown /> : <FaChevronUp />}
+                          </button>
+                        </div>
+                        <div
+                          ref={el => (feedbackRefs.current[fb.id] = el)}
+                          className={`overflow-hidden transition-all duration-300 ease-in-out`}
+                          style={{ maxHeight: collapsedFeedbacks[fb.id] ? '0px' : feedbackRefs.current[fb.id]?.scrollHeight || 'auto' }}
                         >
-                          {collapsedFeedbacks[fb.id] ? (
-                            <FaChevronUp size={16} />
-                          ) : (
-                            <FaChevronDown size={16} />
-                          )}
-                        </button>
-                        {collapsedFeedbacks[fb.id] ? (
-                          <div className="flex justify-between items-center">
-                            <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>
-                              Pull Request #{fb.prId} – {fb.model}
-                            </h5>
-                            <span className={`text-sm ${theme === 'light' ? 'text-black/70' : 'text-white/70'}`}>
-                              {fb.repoFullName}
-                            </span>
-                          </div>
-                        ) : (
-                          <>
-                            <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>
-                              Pull Request #{fb.prId} – {fb.model}
-                            </h5>
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm]}
-                              components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
-                            >
-                              {fb.comment}
-                            </ReactMarkdown>
-                          </>
-                        )}
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
+                          >
+                            {fb.comment}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -582,49 +632,6 @@ export default function UserPage() {
         </div>
       </main>
 
-      {/* Feedback Progress Card */}
-      {showFeedbackCard && (
-        <div className="fixed top-16 left-1/2 transform -translate-x-1/2 z-50 w-[280px]">
-          <Card className={`bg-${theme === 'light' ? 'white/80' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-xl p-2 shadow-md`}>
-            <Card.Header className={`bg-gradient-to-r ${theme === 'light' ? 'from-blue-800 to-blue-900' : 'from-purple-800 to-indigo-900'} text-white text-md font-bold py-2 px-3 rounded-t-xl flex items-center justify-center`}>
-              <FaCheckCircle className={`w-4 h-4 mr-1.5 ${theme === 'light' ? 'text-blue-300' : 'text-purple-300'}`} />
-              Feedback Progress
-            </Card.Header>
-            <Card.Body className={`text-${theme === 'light' ? 'black' : 'white'} p-2 space-y-1`}>
-              {currentStage ? (
-                <ul className="list-none p-0 m-0">
-                  {stages.map((stage, index) => {
-                    const currentStageIndex = stages.indexOf(currentStage);
-                    const isCurrent = stage === currentStage;
-                    const isCompleted = currentStageIndex > index || (done && stage === 'Done');
-                    return (
-                      <li key={stage} className="flex items-center mb-1">
-                        {isCompleted ? (
-                          <FaCheckCircle size={12} className={`mr-1.5 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
-                        ) : isCurrent ? (
-                          <Spinner animation="border" className={`mr-1.5 w-3 h-3 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
-                        ) : (
-                          <div className={`w-3 h-3 rounded-full mr-1.5 ${theme === 'light' ? 'bg-gray-300' : 'bg-gray-600'}`}></div>
-                        )}
-                        <span className={`text-xs ${isCompleted || isCurrent ? (theme === 'light' ? 'text-black' : 'text-white') : (theme === 'light' ? 'text-gray-500' : 'text-gray-400')}`}>
-                          {stage}
-                        </span>
-                      </li>
-                    );
-                  })}
-                </ul>
-              ) : (
-                <div className="flex flex-col items-center">
-                  <Spinner animation="border" className={`my-1 w-4 h-4 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'}`} />
-                  <span className="text-xs">Waiting for PR...</span>
-                </div>
-              )}
-            </Card.Body>
-          </Card>
-        </div>
-      )}
-
-      {/* Floating AI Chat Button */}
       <button
         className={`fixed bottom-5 right-5 w-14 h-14 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} flex items-center justify-center shadow-lg z-50`}
         onClick={() => setChatOpen(!chatOpen)}
@@ -633,10 +640,9 @@ export default function UserPage() {
         <FaRobot size={24} className="text-white" />
       </button>
 
-      {/* Chat window */}
       {chatOpen && (
         <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
-          <div className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white px-4 py-2 flex justify-between items-center`}>
+          <div className={`bg-${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white px-4 py-2 flex justify-between items-center`}>
             <span>AI Assistant</span>
             <button onClick={() => setChatOpen(false)}>✕</button>
           </div>
@@ -666,7 +672,6 @@ export default function UserPage() {
         </div>
       )}
 
-      {/* Footer */}
       <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} backdrop-blur-lg border-t border-${theme === 'light' ? 'black/10' : 'white/10'} py-6 sm:py-8`}>
         <div className="container mx-auto px-4 sm:px-8 grid grid-cols-1 sm:grid-cols-3 gap-4 justify-center text-center">
           <div>
@@ -693,7 +698,6 @@ export default function UserPage() {
         </div>
       </footer>
 
-      {/* Animations and Styles */}
       <style jsx global>{`
         @keyframes gradient-x {
           0%, 100% { background-position: 0% 50%; }
@@ -708,6 +712,14 @@ export default function UserPage() {
         }
         .animate-spin {
           animation: spin 1s linear infinite;
+        }
+        @keyframes fade-in {
+          0% { opacity: 0; margin-top: -10px; }
+          100% { opacity: 1; margin-top: 0; }
+        }
+        .animate-fade-in {
+          animation: fade-in 0.3s ease-out;
+          will-change: opacity, margin-top; /* Optimize animation performance */
         }
         .ai-dropdown .btn {
           background-color: transparent;
@@ -730,17 +742,6 @@ export default function UserPage() {
         }
         .ai-dropdown .dropdown-item.active {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
-        }
-        /* Override Bootstrap Card styles for Feedback Progress */
-        .card {
-          background-color: transparent !important;
-        }
-        .card-header {
-          background: linear-gradient(to right, ${theme === 'light' ? '#1e40af, #1e3a8a' : '#5b21b6, #312e81'}) !important;
-          border-bottom: none !important;
-        }
-        .card-body {
-          background-color: transparent !important;
         }
       `}</style>
     </div>
