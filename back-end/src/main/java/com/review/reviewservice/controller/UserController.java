@@ -5,6 +5,7 @@ import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.entity.WebhookToken;
+import com.review.reviewservice.model.repository.FeedbackRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.AiModelRepository;
 import com.review.reviewservice.model.repository.WebhookTokenRepository;
@@ -33,12 +34,14 @@ public class UserController {
     private final UserRepository userRepository;
     private final AiModelRepository aiModelRepository;
     private final WebhookTokenRepository webhookTokenRepository;
+    private final FeedbackRepository feedbackRepository;
 
     @Autowired
-    public UserController(UserRepository userRepository, AiModelRepository aiModelRepository, WebhookTokenRepository webhookTokenRepository) {
+    public UserController(UserRepository userRepository, AiModelRepository aiModelRepository, WebhookTokenRepository webhookTokenRepository, FeedbackRepository feedbackRepository) {
         this.userRepository = userRepository;
         this.aiModelRepository = aiModelRepository;
         this.webhookTokenRepository = webhookTokenRepository;
+        this.feedbackRepository = feedbackRepository;
     }
 
     /**
@@ -236,5 +239,20 @@ public class UserController {
 
         userRepository.save(user);
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * GET /api/user/repos/{username}
+     * Returns the list of distinct repository names the user has given feedback on.
+     */
+    @GetMapping("/repos/{username}")
+    public ResponseEntity<List<String>> getUserRepos(@PathVariable String username) {
+        userRepository.findByUsername(username)
+                .orElseThrow(() ->
+                        new ResponseStatusException(HttpStatus.NOT_FOUND,
+                                "User not found: " + username));
+
+        List<String> repos = feedbackRepository.findDistinctRepoFullNamesByUsername(username);
+        return ResponseEntity.ok(repos);
     }
 }
