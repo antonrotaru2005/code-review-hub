@@ -59,3 +59,20 @@ export async function disableWebhookToken() {
   }
   return response.json();
 }
+
+export async function getUserRepos(username) {
+  try {
+    const response = await fetch(`/api/user/repos/${username}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user repositories:', error);
+    throw error;
+  }
+}

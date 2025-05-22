@@ -6,14 +6,33 @@ import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken 
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import { Card, DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import { DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 
+export async function getUserRepos(username) {
+  try {
+    const response = await fetch(`/api/user/repos/${username}`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user repositories:', error);
+    throw error;
+  }
+}
+
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
+  const [repos, setRepos] = useState(['all']);
+  const [selectedRepo, setSelectedRepo] = useState('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -63,7 +82,7 @@ export default function UserPage() {
     Object.keys(grouped).forEach(repo => {
       grouped[repo].sort((a, b) => {
         const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : a.id;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
         return bTime - aTime; // Descending order
       });
     });
@@ -84,7 +103,7 @@ export default function UserPage() {
     }));
   };
 
-  // Load user, feedbacks, and webhook status
+  // Load user, feedbacks, repositories, and webhook status
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
@@ -109,6 +128,17 @@ export default function UserPage() {
           });
           setFeedbacks([]);
           setCollapsedFeedbacks({});
+        }
+        try {
+          const userRepos = await getUserRepos(u.username);
+          setRepos(['all', ...userRepos]);
+        } catch (repoErr) {
+          console.error('Failed to load repositories:', {
+            message: repoErr.message,
+            status: repoErr.message.match(/\d{3}/)?.[0],
+            stack: repoErr.stack
+          });
+          setRepos(['all']);
         }
         try {
           const response = await fetch('/api/user/webhook-token', {
@@ -569,7 +599,7 @@ export default function UserPage() {
                 <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
                   {webhookEnabled ? (
                     <span>
-                      Active Token: <code className={` ##### bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
+                      Active Token: <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
                     </span>
                   ) : (
                     <span>Your session is disabled</span>
@@ -590,44 +620,68 @@ export default function UserPage() {
               </div>
             </div>
 
-            {Object.entries(grouped).length === 0 ? (
-              <div className={`text-${theme === 'light' ? 'black/60' : 'white/60'}`}>You haven't left any feedback yet.</div>
-            ) : (
-              Object.entries(grouped).map(([repo, items]) => (
-                <div key={repo} className="mb-6">
-                  <h4 className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-lg mb-2`}>{repo}</h4>
-                  <div className="space-y-4">
-                    {items.map(fb => (
-                      <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
-                        <div className="flex items-center justify-between">
-                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 truncate`}>Pull Request #{fb.prId} – {fb.model}</h5>
-                          <button
-                            onClick={() => toggleCollapse(fb.id)}
-                            className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
-                            aria-label={`Toggle feedback for PR ${fb.prId}`}
-                            aria-expanded={!collapsedFeedbacks[fb.id]}
-                          >
-                            {collapsedFeedbacks[fb.id] ? <FaChevronDown /> : <FaChevronUp />}
-                          </button>
-                        </div>
-                        <div
-                          ref={el => (feedbackRefs.current[fb.id] = el)}
-                          className={`overflow-hidden transition-all duration-300 ease-in-out`}
-                          style={{ maxHeight: collapsedFeedbacks[fb.id] ? '0px' : feedbackRefs.current[fb.id]?.scrollHeight || 'auto' }}
-                        >
-                          <ReactMarkdown
-                            remarkPlugins={[remarkGfm]}
-                            components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
-                          >
-                            {fb.comment}
-                          </ReactMarkdown>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+            <div className="mb-6">
+              <DropdownButton
+                id="repo-dropdown"
+                title={selectedRepo === 'all' ? 'All Repositories' : selectedRepo}
+                variant="secondary"
+                className="ai-dropdown mb-2 text-lg"
+                onSelect={(repo) => setSelectedRepo(repo)}
+              >
+                {repos.map(repo => (
+                  <Dropdown.Item
+                    key={repo}
+                    eventKey={repo}
+                    className={`text-${theme === 'light' ? 'black' : 'white'} text-lg`}
+                  >
+                    {repo === 'all' ? 'All Repositories' : repo}
+                  </Dropdown.Item>
+                ))}
+              </DropdownButton>
+              {Object.entries(grouped).length === 0 ? (
+                <div className={`text-${theme === 'light' ? 'black/60' : 'white/60'}`}>
+                  You haven't left any feedback yet.
                 </div>
-              ))
-            )}
+              ) : (
+                Object.entries(grouped)
+                  .filter(([repo]) => selectedRepo === 'all' || repo === selectedRepo)
+                  .map(([repo, items]) => (
+                    <div key={repo} className="mb-6">
+                      <div className="space-y-4">
+                        {items.map(fb => (
+                          <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
+                            <div className="flex items-center justify-between">
+                              <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 truncate`}>
+                                Pull Request #{fb.prId} – {fb.model}
+                              </h5>
+                              <button
+                                onClick={() => toggleCollapse(fb.id)}
+                                className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                                aria-label={`Toggle feedback for PR ${fb.prId}`}
+                                aria-expanded={!collapsedFeedbacks[fb.id]}
+                              >
+                                {collapsedFeedbacks[fb.id] ? <FaChevronDown /> : <FaChevronUp />}
+                              </button>
+                            </div>
+                            <div
+                              ref={el => (feedbackRefs.current[fb.id] = el)}
+                              className={`overflow-hidden transition-all duration-300 ease-in-out`}
+                              style={{ maxHeight: collapsedFeedbacks[fb.id] ? '0px' : feedbackRefs.current[fb.id]?.scrollHeight || 'auto' }}
+                            >
+                              <ReactMarkdown
+                                remarkPlugins={[remarkGfm]}
+                                components={{ p: ({ node, ...props }) => <p className={`text-${theme === 'light' ? 'black/90' : 'white/90'}`} {...props} /> }}
+                              >
+                                {fb.comment}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </div>
           </div>
         </div>
       </main>
@@ -725,7 +779,10 @@ export default function UserPage() {
           background-color: transparent;
           border-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)'};
           color: ${theme === 'light' ? 'black' : 'white'};
-          width: 100%;
+          padding: 0.25rem 0.5rem;
+          font-size: 1.125rem;
+          line-height: 1.5rem;
+          height: 2rem;
         }
         .ai-dropdown .btn:hover {
           background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
@@ -733,9 +790,11 @@ export default function UserPage() {
         .ai-dropdown .dropdown-menu {
           background-color: ${theme === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'};
           border: 1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
+          font-size: 1.125rem;
         }
         .ai-dropdown .dropdown-item {
           color: ${theme === 'light' ? 'black' : 'white'};
+          padding: 0.25rem 0.5rem;
         }
         .ai-dropdown .dropdown-item:hover {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
