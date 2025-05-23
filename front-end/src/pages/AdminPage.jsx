@@ -3,20 +3,48 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChat } from '../api/chat';
 import { getUserInfo } from '../api/user';
-import { getAdminUsers, getAdminFeedbacksByUser, deleteFeedback } from '../api/admin';
+import { getAdminUsers, getUserStats, getAdminFeedbacksByUser, deleteFeedback } from '../api/admin';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaRobot, FaSun, FaMoon, FaCaretDown } from 'react-icons/fa';
+import { FaRobot, FaSun, FaMoon, FaCaretDown, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useTheme } from '../contexts/ThemeContext';
+import { Doughnut } from 'react-chartjs-2';
+import { Chart as ChartJS, CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement } from 'chart.js';
+
+ChartJS.register(CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement);
+
+// Plugin to display text in the center of Doughnut charts
+const centerTextPlugin = {
+  id: 'centerText',
+  beforeDraw(chart) {
+    const { ctx, chartArea, data } = chart;
+    if (!chart.options.plugins.centerText || !chart.options.plugins.centerText.text) return;
+
+    ctx.save();
+    const text = chart.options.plugins.centerText.text;
+    const fontSize = chart.options.plugins.centerText.fontSize || 18;
+    ctx.font = `bold ${fontSize}px Gabarito, sans-serif`;
+    ctx.fillStyle = chart.options.plugins.centerText.color;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    const centerX = (chartArea.left + chartArea.right) / 2;
+    const centerY = (chartArea.top + chartArea.bottom) / 2;
+    ctx.fillText(text, centerX, centerY);
+    ctx.restore();
+  },
+};
+
+ChartJS.register(centerTextPlugin);
 
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [user, setUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
-  const [feedbacks, setFeedbacks] = useState([]);
-  const [loadingFeedbacks, setLoadingFeedbacks] = useState(false);
+  const [stats, setStats] = useState(null);
+  const [latestFeedback, setLatestFeedback] = useState(null);
+  const [loadingStats, setLoadingStats] = useState(false);
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState(() => {
@@ -29,7 +57,10 @@ export default function AdminPage() {
   });
   const [chatInput, setChatInput] = useState('');
   const [themeOptionsOpen, setThemeOptionsOpen] = useState(false);
+  const [collapsedFeedback, setCollapsedFeedback] = useState(true);
+  const feedbackRef = useRef(null);
   const { theme, setTheme } = useTheme();
+  const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
   const handleThemeSelect = (selectedTheme) => {
@@ -39,6 +70,10 @@ export default function AdminPage() {
 
   const handleSwitchToUser = () => navigate('/user');
   const handleToggleTheme = () => setThemeOptionsOpen(!themeOptionsOpen);
+
+  const toggleCollapse = () => {
+    setCollapsedFeedback(prev => !prev);
+  };
 
   useEffect(() => {
     async function initAdmin() {
@@ -74,7 +109,7 @@ export default function AdminPage() {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
-        setThemeOptionsOpen(false); // Close theme options if open
+        setThemeOptionsOpen(false);
       }
     };
 
@@ -86,6 +121,14 @@ export default function AdminPage() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (feedbackRef.current) {
+      feedbackRef.current.style.maxHeight = collapsedFeedback
+        ? '0px'
+        : `${feedbackRef.current.scrollHeight}px`;
+    }
+  }, [collapsedFeedback, latestFeedback]);
 
   const handleSend = async () => {
     const text = chatInput.trim();
@@ -105,16 +148,19 @@ export default function AdminPage() {
 
   const handleUserSelect = async (user) => {
     setSelectedUser(user);
-    console.log('Selected user attributes:', user);
-    setFeedbacks([]);
-    setLoadingFeedbacks(true);
+    setStats(null);
+    setLatestFeedback(null);
+    setCollapsedFeedback(true);
+    setLoadingStats(true);
     try {
-      const fbs = await getAdminFeedbacksByUser(user.username);
-      setFeedbacks(fbs);
+      const userStats = await getUserStats(user.username);
+      setStats(userStats);
+      const feedbacks = await getAdminFeedbacksByUser(user.username);
+      setLatestFeedback(feedbacks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null);
     } catch (e) {
-      setError('You are not logged in. Please log in or sign up to access this page.');
+      setError('Failed to fetch user stats or feedback.');
     } finally {
-      setLoadingFeedbacks(false);
+      setLoadingStats(false);
     }
   };
 
@@ -126,6 +172,80 @@ export default function AdminPage() {
     } finally {
       navigate('/', { replace: true });
     }
+  };
+
+  // Chart configurations
+  const baseChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      title: { display: true, font: { size: 16, family: 'Gabarito' }, padding: 12 },
+      tooltip: { enabled: true, bodyFont: { size: 14 } },
+    },
+  };
+
+  const distinctReposChart = stats ? {
+    labels: Array.from({ length: stats.distinctRepoCount }, (_, i) => `Repo ${i + 1}`),
+    datasets: [{
+      data: Array.from({ length: stats.distinctRepoCount }, () => 1), // Equal slices
+      backgroundColor: [
+        theme === 'light' ? 'rgba(34, 97, 197, 0.7)' : 'rgba(168, 85, 247, 0.7)', // Green/Purple
+        theme === 'light' ? 'rgba(239, 68, 68, 0.7)' : 'rgba(236, 72, 153, 0.7)', // Red/Pink
+        theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(99, 102, 241, 0.7)', // Blue/Indigo
+        theme === 'light' ? 'rgba(249, 115, 22, 0.7)' : 'rgba(250, 204, 21, 0.7)', // Orange/Yellow
+        theme === 'light' ? 'rgba(147, 51, 234, 0.7)' : 'rgba(34, 197, 94, 0.7)', // Purple/Green
+      ].slice(0, stats.distinctRepoCount),
+      borderColor: [
+        theme === 'light' ? 'rgb(230, 230, 230)' : 'rgba(168, 85, 247, 1)',
+        theme === 'light' ? 'rgba(239, 68, 68, 1)' : 'rgba(236, 72, 153, 1)',
+        theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(99, 102, 241, 1)',
+        theme === 'light' ? 'rgba(249, 115, 22, 1)' : 'rgba(250, 204, 21, 1)',
+        theme === 'light' ? 'rgba(147, 51, 234, 1)' : 'rgba(34, 197, 94, 1)',
+      ].slice(0, stats.distinctRepoCount),
+      borderWidth: 2,
+      hoverOffset: 20,
+    }],
+  } : null;
+
+  const distinctReposOptions = {
+    ...baseChartOptions,
+    plugins: {
+      ...baseChartOptions.plugins,
+      title: { display: true, text: 'Distinct Repos' },
+      centerText: {
+        text: stats ? `${stats.distinctRepoCount}` : '',
+        fontSize: 24,
+        color: theme === 'light' ? 'rgba(0, 0, 0, 0.9)' : 'rgba(255, 255, 255, 0.9)',
+      },
+    },
+  };
+
+  const avgRateChart = stats ? {
+    labels: ['Rate', 'Remaining'],
+    datasets: [{
+      data: [stats.avgRate, 100 - stats.avgRate],
+      backgroundColor: [
+        theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(168, 85, 247, 0.7)',
+        theme === 'light' ? 'rgba(229, 231, 235, 0.4)' : 'rgba(55, 65, 81, 0.4)',
+      ],
+      borderColor: [
+        theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(168, 85, 247, 1)',
+        theme === 'light' ? 'rgba(229, 231, 235, 1)' : 'rgba(55, 65, 81, 1)',
+      ],
+      borderWidth: 2,
+      circumference: 180,
+      rotation: 270,
+      hoverOffset: 20,
+    }],
+  } : null;
+
+  const avgRateOptions = {
+    ...baseChartOptions,
+    plugins: {
+      ...baseChartOptions.plugins,
+      title: { display: true, text: 'Avg Rate (%)' },
+    },
   };
 
   if (loading) {
@@ -140,7 +260,7 @@ export default function AdminPage() {
   if (error) {
     return (
       <div className={`min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
-        <div className={`relative z-10 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
+        <div className={`relative z-10 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'text-black' : 'text-white'} text-center`}>
           <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Authentication Required</h3>
           <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>{error}</p>
           {error === 'You are not logged in. Please log in or sign up to access this page.' ? (
@@ -247,32 +367,32 @@ export default function AdminPage() {
       </nav>
 
       <main className={`relative z-40 px-6 py-6 flex-grow`}>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="md:col-span-1 space-y-6">
-            <div className={`bg-${theme === 'light' ? 'white/70' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
-              <h5 className={`mb-3 text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>All Users</h5>
-              <div className="space-y-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          <div className="md:col-span-1 space-y-8">
+            <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+              <h5 className={`mb-4 text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>All Users</h5>
+              <div className="space-y-3">
                 {users.map(u => (
                   <div
                     key={u.username}
-                    className={`p-2 rounded-lg cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-200/30' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-200/40' : 'hover:bg-black/40')}`}
+                    className={`p-3 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
                     onClick={() => handleUserSelect(u)}
                   >
                     {u.avatar ? (
                       <img
                         src={u.avatar}
                         alt="Avatar"
-                        className="w-8 h-8 rounded-full object-cover mr-2"
+                        className="w-10 h-10 rounded-full object-cover mr-3"
                         onError={(e) => (e.target.src = '')}
                       />
                     ) : (
                       <div
-                        className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-8 h-8 rounded-full flex items-center justify-center mr-2 text-sm`}
+                        className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg`}
                       >
                         {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                       </div>
                     )}
-                    <span className={theme === 'light' ? 'text-black' : 'text-white'}>{u.name || u.username}</span>
+                    <span className={`text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
                   </div>
                 ))}
               </div>
@@ -281,61 +401,115 @@ export default function AdminPage() {
 
           <div className="md:col-span-3">
             {!selectedUser ? (
-              <div className={`text-center ${theme === 'light' ? 'text-black/60' : 'text-white/60'} mt-10`}>
-                Select a user to view details and feedbacks.
+              <div className={`text-center ${theme === 'light' ? 'text-black/60' : 'text-white/60'} mt-12 text-xl`}>
+                Select a user to view their statistics and latest feedback.
               </div>
             ) : (
               <>
-                <div className={`bg-${theme === 'light' ? 'white/70' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 mb-6 flex items-center`}>
+                <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 flex items-center shadow-xl transition-all duration-300 hover:shadow-2xl`}>
                   {selectedUser.avatar ? (
                     <img
                       src={selectedUser.avatar}
                       alt="Avatar"
-                      className="w-20 h-20 rounded-full object-cover mr-4"
+                      className="w-24 h-24 rounded-full object-cover mr-5"
                       onError={(e) => (e.target.src = '')}
                     />
                   ) : (
                     <div
-                      className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-20 h-20 rounded-full flex items-center justify-center mr-4 text-2xl`}
+                      className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-24 h-24 rounded-full flex items-center justify-center mr-5 text-3xl`}
                     >
                       {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
                   <div>
-                    <h5 className={`mb-1 text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{selectedUser.name || selectedUser.username}</h5>
-                    <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>@{selectedUser.username} • {selectedUser.email}</p>
+                    <h5 className={`mb-2 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{selectedUser.name || selectedUser.username}</h5>
+                    <p className={`text-lg ${theme === 'light' ? 'text-black/70' : 'text-white/70'}`}>@{selectedUser.username} • {selectedUser.email}</p>
                   </div>
                 </div>
 
-                <h5 className={`mb-3 text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Feedbacks</h5>
-                {loadingFeedbacks ? (
+                {loadingStats ? (
                   <div className="flex justify-center">
-                    <div className={`animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 ${theme === 'light' ? 'border-blue-600' : 'border-purple-600'}`}></div>
-                  </div>
-                ) : feedbacks.length === 0 ? (
-                  <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 text-${theme === 'light' ? 'black/60' : 'white/60'}`}>
-                    No feedbacks for this user.
+                    <div className={`animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 ${theme === 'light' ? 'border-blue-600' : 'border-purple-600'}`}></div>
                   </div>
                 ) : (
-                  feedbacks.map(fb => (
-                    <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4 mb-3`}>
-                      <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2`}>
-                        PR #{fb.prId} • <span className={theme === 'light' ? 'text-black' : 'text-white'}>{fb.repoFullName}</span>
-                      </h5>
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{ p: ({ node, ...props }) => <p className={theme === 'light' ? 'text-black/90' : 'text-white/90'} {...props} /> }}
-                      >
-                        {fb.comment}
-                      </ReactMarkdown>
-                      <button
-                        className="mt-2 px-3 py-1 bg-red-600 text-white rounded-full hover:bg-red-500 transition"
-                        onClick={() => deleteFeedback(fb.id).then(() => handleUserSelect(selectedUser))}
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  ))
+                  <>
+                    <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Latest Feedback</h5>
+                    {latestFeedback ? (
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-xl transition-all duration-300 hover:shadow-2xl overflow-auto`}>
+                        <div className="flex items-center justify-between">
+                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} mb-3 truncate`}>
+                            PR #{latestFeedback.prId} • {latestFeedback.repoFullName}
+                          </h5>
+                          <div className="flex items-center gap-3">
+                            <button
+                              className="px-4 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 transition text-base"
+                              onClick={() => deleteFeedback(latestFeedback.id).then(() => handleUserSelect(selectedUser))}
+                            >
+                              Delete
+                            </button>
+                            <button
+                              onClick={toggleCollapse}
+                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                              aria-label={`Toggle feedback for PR ${latestFeedback.prId}`}
+                              aria-expanded={!collapsedFeedback}
+                            >
+                              {collapsedFeedback ? <FaChevronDown size={20} /> : <FaChevronUp size={20} />}
+                            </button>
+                          </div>
+                        </div>
+                        <div
+                          ref={feedbackRef}
+                          className={`transition-opacity duration-300 ${collapsedFeedback ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}
+                        >
+                          <ReactMarkdown
+                            remarkPlugins={[remarkGfm]}
+                            components={{ p: ({ node, ...props }) => <p  {...props} className={`text-lg ${theme === 'light' ? 'text-black/90' : 'text-white/90'} mb-2 ${props.className || ''}`} /> }} 
+                          >
+                            {latestFeedback.comment}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 text-lg ${theme === 'light' ? 'text-black/60' : 'text-white/60'} shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+                        No feedback available for this user.
+                      </div>
+                    )}
+
+                    <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>User Statistics</h5>
+                    {stats && (
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/70 via-indigo-900/70 to-blue-900/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-2xl transition-all duration-300 hover:shadow-3xl`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-6">
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-200' : 'bg-purple-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-purple-300'}`}>Total Feedbacks</p>
+                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-700' : 'text-purple-200'}`}>{stats.totalFeedbacks}</p>
+                          </div>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-cyan-100' : 'bg-pink-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Avg Comment Length</p>
+                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{stats.avgCommentLength.toFixed(2)} chars</p>
+                          </div>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white-100' : 'bg-pink-400/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Last Feedback At</p>
+                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</p>
+                          </div>
+                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 pt-8 transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
+                            <Doughnut
+                              data={distinctReposChart}
+                              options={distinctReposOptions}
+                            />
+                          </div>
+                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 flex flex-col items-center justify-between transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
+                            <div className="w-full h-4/5">
+                              <Doughnut
+                                data={avgRateChart}
+                                options={avgRateOptions}
+                              />
+                            </div>
+                            <p className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>{stats ? `${stats.avgRate}%` : ''}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -345,11 +519,11 @@ export default function AdminPage() {
 
       {/* Floating AI Chat Button */}
       <button
-        className={`fixed bottom-5 right-5 w-14 h-14 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white text-xl flex items-center justify-center shadow-lg z-50`}
+        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white text-xl flex items-center justify-center shadow-xl z-50 transition-all duration-200 hover:scale-110`}
         onClick={() => setChatOpen(!chatOpen)}
         title="Chat with AI"
       >
-        <FaRobot size={24} />
+        <FaRobot size={28} />
       </button>
 
       {/* Chat window */}
@@ -383,8 +557,8 @@ export default function AdminPage() {
       )}
 
       {/* Footer */}
-      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} backdrop-blur-lg border-t border-${theme === 'light' ? 'black/10' : 'white/10'} py-6 sm:py-8`}>
-        <div className={`text-center mt-4 sm:mt-6 ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-xs sm:text-sm`}>
+      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} backdrop-blur-lg border-t border-${theme === 'light' ? 'black/10' : 'white/10'} py-8`}>
+        <div className={`text-center mt-6 ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-base`}>
           © {new Date().getFullYear()} Code Review Hub. All rights reserved.
         </div>
       </footer>
@@ -404,6 +578,9 @@ export default function AdminPage() {
         }
         .animate-spin {
           animation: spin 1s linear infinite;
+        }
+        .shadow-3xl {
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>
