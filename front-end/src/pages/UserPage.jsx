@@ -28,11 +28,48 @@ export async function getUserRepos(username) {
   }
 }
 
+export async function getUserReviewAspects(username) {
+  try {
+    const response = await fetch(`/api/user/${username}/aspects`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user review aspects:', error);
+    throw error;
+  }
+}
+
+export async function updateUserReviewAspects(username, aspects) {
+  try {
+    const response = await fetch(`/api/user/${username}/aspects`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(aspects)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to update user review aspects:', error);
+    throw error;
+  }
+}
+
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
   const [repos, setRepos] = useState(['all']);
   const [selectedRepo, setSelectedRepo] = useState('all');
+  const [searchId, setSearchId] = useState('');
+  const [showRepoWarning, setShowRepoWarning] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -53,7 +90,12 @@ export default function UserPage() {
   const [done, setDone] = useState(false);
   const [popup, setPopup] = useState({ visible: false, stage: null, prId: null });
   const [collapsedFeedbacks, setCollapsedFeedbacks] = useState({});
+  const [reviewAspects, setReviewAspects] = useState([]);
+  const [selectedAspects, setSelectedAspects] = useState([]);
+  const [aspectsDropdownOpen, setAspectsDropdownOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false);
   const feedbackRefs = useRef({});
+  const aspectsDropdownRef = useRef(null);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -73,19 +115,52 @@ export default function UserPage() {
     { id: 11, ai: 'Gemini', model: 'gemini-2.5-pro', label: 'Gemini 2.5 Pro' },
   ];
 
-  // Groups feedbacks by repoFullName and sorts by createdAt (or id) in descending order
-  const groupByRepo = (feedbacks) => {
+  const allReviewAspects = [
+    'Summary',
+    'Syntax & Style',
+    'Correctness & Logic',
+    'Potential Bugs',
+    'Security Considerations',
+    'Performance & Scalability',
+    'Maintainability & Readability',
+    'Documentation & Comments',
+    'Best practices & Design Principles',
+    'Recommendations'
+  ];
+
+  // Groups feedbacks by repoFullName, prioritizes searchId match, and sorts by createdAt (or id) in descending order
+  const groupByRepo = (feedbacks, searchId = '') => {
     const grouped = feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
       return acc;
     }, {});
-    Object.keys(grouped).forEach(repo => {
-      grouped[repo].sort((a, b) => {
-        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-        return bTime - aTime; // Descending order
+
+      Object.keys(grouped).forEach(repo => {
+        // объявляем переменную-буфер
+        let matchedFeedback = null;
+
+        // если выбран конкретный репозиторий и введён PR-ID
+        if (searchId && repo === selectedRepo && selectedRepo !== 'all') {
+          const searchNum = parseInt(searchId, 10);
+          const matchedIndex = grouped[repo].findIndex(fb => fb.prId === searchNum);
+          if (matchedIndex !== -1) {
+            matchedFeedback = grouped[repo].splice(matchedIndex, 1)[0]; // вырезаем найденное
+          }
+        }
+
+        // сортируем оставшиеся по дате/ID
+        grouped[repo].sort((a, b) => {
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+          return bTime - aTime; // по убыванию
+        });
+
+        // ставим найденный карточку в начало (если была)
+        if (matchedFeedback) {
+          grouped[repo].unshift(matchedFeedback);
+        }
       });
-    });
+
     return Object.fromEntries(
       Object.entries(grouped).sort(([, a], [, b]) => {
         const aTime = a[0]?.createdAt ? new Date(a[0].createdAt).getTime() : a[0]?.id;
@@ -103,7 +178,66 @@ export default function UserPage() {
     }));
   };
 
-  // Load user, feedbacks, repositories, and webhook status
+  // Handle aspect selection
+  const handleAspectChange = async (aspect) => {
+    let updatedAspects;
+    if (selectedAspects.includes(aspect)) {
+      updatedAspects = selectedAspects.filter(a => a !== aspect);
+    } else {
+      updatedAspects = [...selectedAspects, aspect];
+    }
+    setSelectedAspects(updatedAspects);
+    try {
+      await updateUserReviewAspects(user.username, updatedAspects);
+    } catch (error) {
+      console.error('Failed to update review aspects:', error);
+      setError('Failed to update review aspects. Please try again.');
+    }
+  };
+
+  // Handle token copy to clipboard
+  const handleCopyToken = async () => {
+    try {
+      await navigator.clipboard.writeText(token);
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy token:', err);
+      setError('Failed to copy token. Please try again.');
+    }
+  };
+
+  // Handle search by PR ID
+  const handleSearchId = (e) => {
+    const value = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
+    setSearchId(value);
+  };
+
+  // Handle Enter key press for search
+  const handleSearchSubmit = () => {
+    if (selectedRepo === 'all') {
+      setShowRepoWarning(true);
+      setSearchId('');
+      setTimeout(() => setShowRepoWarning(false), 2000);
+      return;
+    }
+    if (searchId) {
+      const searchNum = parseInt(searchId, 10);
+      if (!isNaN(searchNum)) {
+        // Create a new sorted array of feedbacks
+        const sortedFeedbacks = [...feedbacks].sort((a, b) => {
+          if (a.repoFullName === selectedRepo && a.prId === searchNum) return -1;
+          if (b.repoFullName === selectedRepo && b.prId === searchNum) return 1;
+          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+          return bTime - aTime; // Maintain descending order for others
+        });
+        setFeedbacks(sortedFeedbacks);
+      }
+    }
+  };
+
+  // Load user, feedbacks, repositories, review aspects, and webhook status
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
@@ -139,6 +273,19 @@ export default function UserPage() {
             stack: repoErr.stack
           });
           setRepos(['all']);
+        }
+        try {
+          const aspects = await getUserReviewAspects(u.username);
+          setReviewAspects(aspects);
+          setSelectedAspects(aspects);
+        } catch (aspectErr) {
+          console.error('Failed to load review aspects:', {
+            message: aspectErr.message,
+            status: aspectErr.message.match(/\d{3}/)?.[0],
+            stack: aspectErr.stack
+          });
+          setReviewAspects(allReviewAspects);
+          setSelectedAspects(allReviewAspects);
         }
         try {
           const response = await fetch('/api/user/webhook-token', {
@@ -205,23 +352,23 @@ export default function UserPage() {
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
   }, [theme]);
 
-  // Close dropdown on click outside
+  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
         setDropdownOpen(false);
         setThemeOptionsOpen(false);
       }
+      if (aspectsDropdownRef.current && !aspectsDropdownRef.current.contains(event.target)) {
+        setAspectsDropdownOpen(false);
+      }
     };
 
-    if (dropdownOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
-    }
-
+    document.addEventListener('mousedown', handleClickOutside);
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [dropdownOpen]);
+  }, []);
 
   // WebSocket for feedback stages and PR creation
   useEffect(() => {
@@ -398,7 +545,7 @@ export default function UserPage() {
     );
   }
 
-  const grouped = groupByRepo(feedbacks);
+  const grouped = groupByRepo(feedbacks, searchId);
   const uniqueAis = [...new Set(aiModels.map(m => m.ai))];
 
   return (
@@ -411,7 +558,7 @@ export default function UserPage() {
         </div>
       )}
 
-      {/* Pop-up Notification */}
+      {/* Pop-up Notification for Webhook Stages */}
       {popup.visible && (
         <div
           className={`fixed top-5 left-50% w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
@@ -429,6 +576,18 @@ export default function UserPage() {
                 <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>Done</span>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up Notification for Repository Warning */}
+      {showRepoWarning && (
+        <div
+          className={`fixed top-5 left-50% w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <div className="flex items-center justify-center">
+            <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>Choose the repository first</span>
           </div>
         </div>
       )}
@@ -527,11 +686,37 @@ export default function UserPage() {
               <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>{user.email}</p>
             </div>
 
-            <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
+            <div className={`relative z-50 rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
               <h4 className={`text-lg font-semibold mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Current AI Model:</h4>
               <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                 <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
               </p>
+              <div className="relative mt-2" ref={aspectsDropdownRef}>
+                <div
+                  className="flex items-center justify-center gap-2 cursor-pointer"
+                  onClick={() => setAspectsDropdownOpen(!aspectsDropdownOpen)}
+                >
+                  <span className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                    Choose Aspects for Your AI
+                  </span>
+                  <FaCaretDown className={theme === 'light' ? 'text-black' : 'text-white'} />
+                </div>
+                {aspectsDropdownOpen && (
+                  <div className={`absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 max-h-48 overflow-y-auto ${theme === 'light' ? 'bg-white/90' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg z-[100] p-4`}>
+                    {allReviewAspects.map(aspect => (
+                      <label key={aspect} className="flex items-center cursor-pointer mb-2 justify-start">
+                        <input
+                          type="checkbox"
+                          checked={selectedAspects.includes(aspect)}
+                          onChange={() => handleAspectChange(aspect)}
+                          className="mr-2"
+                        />
+                        <span className={`text-sm text-left ${theme === 'light' ? 'text-black' : 'text-white'}`}>{aspect}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 flex flex-col`}>
@@ -540,27 +725,29 @@ export default function UserPage() {
               </h4>
               <div className="flex flex-col gap-3">
                 {uniqueAis.map(ai => (
-                  <DropdownButton
-                    key={ai}
-                    id={`dropdown-${ai}`}
-                    title={ai.charAt(0).toUpperCase() + ai.slice(1)}
-                    variant="secondary"
-                    className="w-full ai-dropdown"
-                    onSelect={model => handleModelChange(ai, model)}
-                  >
-                    {aiModels
-                      .filter(m => m.ai === ai)
-                      .map(model => (
-                        <Dropdown.Item
-                          key={model.model}
-                          eventKey={model.model}
-                          active={user.aiModel.model === model.model}
-                          className={`text-${theme === 'light' ? 'black' : 'white'}`}
-                        >
-                          {model.label}
-                        </Dropdown.Item>
-                      ))}
-                  </DropdownButton>
+                  <div key={ai} className="relative w-full">
+                    <DropdownButton
+                      id={`dropdown-${ai}`}
+                      title={ai.charAt(0).toUpperCase() + ai.slice(1)}
+                      variant="secondary"
+                      className="w-full ai-dropdown"
+                      onSelect={model => handleModelChange(ai, model)}
+                    >
+                      {aiModels
+                        .filter(m => m.ai === ai)
+                        .map(model => (
+                          <Dropdown.Item
+                            key={model.model}
+                            eventKey={model.model}
+                            active={user.aiModel.model === model.model}
+                            className={`text-${theme === 'light' ? 'black' : 'white'} text-sm`}
+                          >
+                            {model.label}
+                          </Dropdown.Item>
+                        ))}
+                    </DropdownButton>
+                    <FaCaretDown className={`absolute right-3 top-1/2 transform -translate-y-1/2 ${theme === 'light' ? 'text-black' : 'text-white'}`} />
+                  </div>
                 ))}
               </div>
             </div>
@@ -569,7 +756,17 @@ export default function UserPage() {
           {/* Main content */}
           <div className="lg:col-span-3">
             <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
-              <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
+              <div className="flex items-center gap-4">
+                <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
+                <input
+                  type="text"
+                  placeholder="Search by ID"
+                  value={searchId}
+                  onChange={handleSearchId}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
+                  className={`w-32 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                />
+              </div>
               <div className="flex flex-col gap-2 items-center">
                 <div className="flex gap-4 items-center">
                   <Link
@@ -596,10 +793,22 @@ export default function UserPage() {
                     </span>
                   </label>
                 </div>
-                <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center`}>
+                <div className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded px-4 py-2 text-sm text-center relative`}>
                   {webhookEnabled ? (
                     <span>
-                      Active Token: <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded`}>{token}</code>
+                      Active Token:{' '}
+                      <code
+                        className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} px-1.5 py-0.5 rounded cursor-pointer hover:bg-${theme === 'light' ? 'black/30' : 'black/70'}`}
+                        onClick={handleCopyToken}
+                        title="Click to copy"
+                      >
+                        {token}
+                      </code>
+                      {isCopied && (
+                        <span className={`absolute bottom-[-1.5rem] left-1/2 transform -translate-x-1/2 text-xs ${theme === 'light' ? 'text-blue-600' : 'text-purple-600'}`}>
+                          Copied!
+                        </span>
+                      )}
                     </span>
                   ) : (
                     <span>Your session is disabled</span>
@@ -621,23 +830,25 @@ export default function UserPage() {
             </div>
 
             <div className="mb-6">
+            <div className="repo-dropdown-wrapper">
               <DropdownButton
                 id="repo-dropdown"
                 title={selectedRepo === 'all' ? 'All Repositories' : selectedRepo}
                 variant="secondary"
-                className="ai-dropdown mb-2 text-lg"
+                className=" mb-2 text-sm "
                 onSelect={(repo) => setSelectedRepo(repo)}
               >
                 {repos.map(repo => (
                   <Dropdown.Item
                     key={repo}
                     eventKey={repo}
-                    className={`text-${theme === 'light' ? 'black' : 'white'} text-lg`}
+                    className={`text-${theme === 'light' ? 'black' : 'black'} text-m`}
                   >
                     {repo === 'all' ? 'All Repositories' : repo}
                   </Dropdown.Item>
                 ))}
               </DropdownButton>
+            </div>
               {Object.entries(grouped).length === 0 ? (
                 <div className={`text-${theme === 'light' ? 'black/60' : 'white/60'}`}>
                   You haven't left any feedback yet.
@@ -779,10 +990,14 @@ export default function UserPage() {
           background-color: transparent;
           border-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)'};
           color: ${theme === 'light' ? 'black' : 'white'};
-          padding: 0.25rem 0.5rem;
-          font-size: 1.125rem;
+          padding: 0.5rem 1rem;
+          font-size: 1rem;
           line-height: 1.5rem;
-          height: 2rem;
+          height: 2.5rem;
+          width: 100%;
+          text-align: left;
+          position: relative;
+          padding-right: 2.5rem; /* Space for the caret */
         }
         .ai-dropdown .btn:hover {
           background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
@@ -790,17 +1005,53 @@ export default function UserPage() {
         .ai-dropdown .dropdown-menu {
           background-color: ${theme === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'};
           border: 1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
-          font-size: 1.125rem;
+          font-size: 0.875rem;
+          width: auto;
+          min-width: 100%;
+          max-width: 500px; /* Prevent overly wide dropdowns */
+          z-index: 60; /* Higher than Current AI Model card (z-50) */
         }
         .ai-dropdown .dropdown-item {
           color: ${theme === 'light' ? 'black' : 'white'};
-          padding: 0.25rem 0.5rem;
+          padding: 0.5rem 1rem;
+          white-space: normal; /* Allow text wrapping */
+          word-break: break-word; /* Break long words */
         }
         .ai-dropdown .dropdown-item:hover {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
         }
         .ai-dropdown .dropdown-item.active {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
+        }
+
+        #repo-dropdown {
+          display: inline-flex;        
+          align-items: center;
+          max-width: 220px;              
+          padding: 0.375rem 0.75rem;
+          font-size: 0.875rem;
+          white-space: nowrap;           
+          overflow: hidden;              
+          text-overflow: ellipsis;       
+        }
+        #repo-dropdown .btn {
+          display: inline-block;
+          width: auto;
+          min-width: 100px; 
+          max-width: 100px; 
+          padding: 0.5rem 1rem;
+        }
+        #repo-dropdown .dropdown-menu {
+          min-width: 220px;
+          max-width: 280px;
+          white-space: normal;           
+          word-break: break-word;
+        }
+
+        .repo-dropdown-wrapper {
+          display: inline-block; 
+          width: auto; 
+          max-width: 200px; 
         }
       `}</style>
     </div>
