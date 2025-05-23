@@ -124,7 +124,7 @@ public class CodeReviewService {
         sb.append("#### ")
                 .append(aspects.size() + 1)
                 .append(". Rate\n")
-                .append("On the next line, output ONLY a single integer between 1 and 100, with no other characters.\n\n");
+                .append("On the next line, output ONLY a single integer between 1 and 100, with no other characters, representing the overall quality of the pull request.\n\n");
 
         sb.append("Provide concise feedback for each aspect as Markdown under its heading.");
         return sb.toString();
