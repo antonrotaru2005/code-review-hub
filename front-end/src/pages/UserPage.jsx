@@ -66,6 +66,7 @@ export async function updateUserReviewAspects(username, aspects) {
 export default function UserPage() {
   const [user, setUser] = useState(null);
   const [feedbacks, setFeedbacks] = useState([]);
+  const [allFeedbacks, setAllFeedbacks] = useState([]);
   const [repos, setRepos] = useState(['all']);
   const [selectedRepo, setSelectedRepo] = useState('all');
   const [searchId, setSearchId] = useState('');
@@ -129,37 +130,19 @@ export default function UserPage() {
   ];
 
   // Groups feedbacks by repoFullName, prioritizes searchId match, and sorts by createdAt (or id) in descending order
-  const groupByRepo = (feedbacks, searchId = '') => {
+  const groupByRepo = (feedbacks) => {
     const grouped = feedbacks.reduce((acc, fb) => {
       (acc[fb.repoFullName] = acc[fb.repoFullName] || []).push(fb);
       return acc;
     }, {});
 
-      Object.keys(grouped).forEach(repo => {
-        // объявляем переменную-буфер
-        let matchedFeedback = null;
-
-        // если выбран конкретный репозиторий и введён PR-ID
-        if (searchId && repo === selectedRepo && selectedRepo !== 'all') {
-          const searchNum = parseInt(searchId, 10);
-          const matchedIndex = grouped[repo].findIndex(fb => fb.prId === searchNum);
-          if (matchedIndex !== -1) {
-            matchedFeedback = grouped[repo].splice(matchedIndex, 1)[0]; // вырезаем найденное
-          }
-        }
-
-        // сортируем оставшиеся по дате/ID
-        grouped[repo].sort((a, b) => {
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-          return bTime - aTime; // по убыванию
-        });
-
-        // ставим найденный карточку в начало (если была)
-        if (matchedFeedback) {
-          grouped[repo].unshift(matchedFeedback);
-        }
+    Object.keys(grouped).forEach(repo => {
+      grouped[repo].sort((a, b) => {
+        const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
+        const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
+        return bTime - aTime; // Descending order
       });
+    });
 
     return Object.fromEntries(
       Object.entries(grouped).sort(([, a], [, b]) => {
@@ -211,30 +194,39 @@ export default function UserPage() {
   const handleSearchId = (e) => {
     const value = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
     setSearchId(value);
+
+    if (!value) {
+      setFeedbacks(allFeedbacks); // Reset to full list if search is empty
+      return;
+    }
+
+    const searchNum = parseInt(value, 10);
+    if (isNaN(searchNum)) {
+      setFeedbacks(allFeedbacks);
+      return;
+    }
+
+    // Filter from allFeedbacks
+    const filteredFeedbacks = allFeedbacks.filter(fb =>
+      fb.prId === searchNum &&
+      (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
+    );
+    setFeedbacks(filteredFeedbacks);
   };
 
   // Handle Enter key press for search
   const handleSearchSubmit = () => {
-    if (selectedRepo === 'all') {
-      setShowRepoWarning(true);
-      setSearchId('');
-      setTimeout(() => setShowRepoWarning(false), 2000);
-      return;
-    }
-    if (searchId) {
-      const searchNum = parseInt(searchId, 10);
-      if (!isNaN(searchNum)) {
-        // Create a new sorted array of feedbacks
-        const sortedFeedbacks = [...feedbacks].sort((a, b) => {
-          if (a.repoFullName === selectedRepo && a.prId === searchNum) return -1;
-          if (b.repoFullName === selectedRepo && b.prId === searchNum) return 1;
-          const aTime = a.createdAt ? new Date(a.createdAt).getTime() : a.id;
-          const bTime = b.createdAt ? new Date(b.createdAt).getTime() : b.id;
-          return bTime - aTime; // Maintain descending order for others
-        });
-        setFeedbacks(sortedFeedbacks);
-      }
-    }
+    if (!searchId) return;
+    const searchNum = parseInt(searchId, 10);
+    if (isNaN(searchNum)) return;
+
+    // Filter feedbacks by PR ID, optionally restricting to selectedRepo if not 'all'
+    const filteredFeedbacks = feedbacks.filter(fb => 
+      fb.prId === searchNum && 
+      (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
+    );
+
+    setFeedbacks(filteredFeedbacks);
   };
 
   // Load user, feedbacks, repositories, review aspects, and webhook status
@@ -248,7 +240,8 @@ export default function UserPage() {
         setUser(u);
         try {
           const fbs = await getUserFeedbacks(u.username);
-          setFeedbacks(fbs);
+          setAllFeedbacks(fbs); // Store full list
+          setFeedbacks(fbs); // Set initial filtered list
           // Initialize all feedbacks as collapsed by default
           setCollapsedFeedbacks(
             fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: true }), {})
@@ -260,6 +253,7 @@ export default function UserPage() {
             stack: fbErr.stack,
             username: u.username
           });
+          setAllFeedbacks([]);
           setFeedbacks([]);
           setCollapsedFeedbacks({});
         }
@@ -395,7 +389,11 @@ export default function UserPage() {
           setPopup({ visible: true, stage: 'Done', prId: body.prId });
           try {
             const fbs = await getUserFeedbacks(username);
-            setFeedbacks(fbs);
+            setAllFeedbacks(fbs); // Update full list
+            setFeedbacks(searchId ? fbs.filter(fb =>
+              fb.prId === parseInt(searchId, 10) &&
+              (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
+            ) : fbs); // Apply current search filter
             // Update collapsedFeedbacks, collapsing new feedbacks by default
             setCollapsedFeedbacks(prev => ({
               ...prev,
@@ -418,7 +416,7 @@ export default function UserPage() {
 
     client.activate();
     return () => client.deactivate();
-  }, [user, error, loading, webhookEnabled]);
+  }, [user, error, loading, webhookEnabled, searchId, selectedRepo]);
 
   // Update feedback content heights for animation
   useEffect(() => {
@@ -686,7 +684,7 @@ export default function UserPage() {
               <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>{user.email}</p>
             </div>
 
-            <div className={`relative z-50 rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
+            <div className={`relative ${aspectsDropdownOpen ? 'z-[1000]' : 'z-80'} rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
               <h4 className={`text-lg font-semibold mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Current AI Model:</h4>
               <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'}`}>
                 <strong>{user.aiModel.ai} - {user.aiModel.model}</strong>
@@ -702,7 +700,7 @@ export default function UserPage() {
                   <FaCaretDown className={theme === 'light' ? 'text-black' : 'text-white'} />
                 </div>
                 {aspectsDropdownOpen && (
-                  <div className={`absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 max-h-48 overflow-y-auto ${theme === 'light' ? 'bg-white/90' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg z-[100] p-4`}>
+                  <div className={`aspects-dropdown-list absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 max-h-48 overflow-y-auto ${theme === 'light' ? 'bg-white/90' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg p-4`}>
                     {allReviewAspects.map(aspect => (
                       <label key={aspect} className="flex items-center cursor-pointer mb-2 justify-start">
                         <input
@@ -763,7 +761,6 @@ export default function UserPage() {
                   placeholder="Search by ID"
                   value={searchId}
                   onChange={handleSearchId}
-                  onKeyDown={(e) => e.key === 'Enter' && handleSearchSubmit()}
                   className={`w-32 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
                 />
               </div>
@@ -830,29 +827,29 @@ export default function UserPage() {
             </div>
 
             <div className="mb-6">
-            <div className="repo-dropdown-wrapper">
-              <DropdownButton
-                id="repo-dropdown"
-                title={selectedRepo === 'all' ? 'All Repositories' : selectedRepo}
-                variant="secondary"
-                className=" mb-2 text-sm "
-                onSelect={(repo) => setSelectedRepo(repo)}
-              >
-                {repos.map(repo => (
-                  <Dropdown.Item
-                    key={repo}
-                    eventKey={repo}
-                    className={`text-${theme === 'light' ? 'black' : 'black'} text-m`}
-                  >
-                    {repo === 'all' ? 'All Repositories' : repo}
-                  </Dropdown.Item>
-                ))}
-              </DropdownButton>
-            </div>
+              <div className="repo-dropdown-wrapper">
+                <DropdownButton
+                  id="repo-dropdown"
+                  title={selectedRepo === 'all' ? 'All Repositories' : selectedRepo}
+                  variant="secondary"
+                  className="mb-2 text-sm"
+                  onSelect={(repo) => setSelectedRepo(repo)}
+                >
+                  {repos.map(repo => (
+                    <Dropdown.Item
+                      key={repo}
+                      eventKey={repo}
+                      className={`text-${theme === 'light' ? 'black' : 'black'} text-m`}
+                    >
+                      {repo === 'all' ? 'All Repositories' : repo}
+                    </Dropdown.Item>
+                  ))}
+                </DropdownButton>
+              </div>
               {Object.entries(grouped).length === 0 ? (
                 <div className={`text-${theme === 'light' ? 'black/60' : 'white/60'}`}>
-                  You haven't left any feedback yet.
-                </div>
+                No feedback found.
+              </div>
               ) : (
                 Object.entries(grouped)
                   .filter(([repo]) => selectedRepo === 'all' || repo === selectedRepo)
@@ -862,17 +859,22 @@ export default function UserPage() {
                         {items.map(fb => (
                           <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
                             <div className="flex items-center justify-between">
-                              <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 truncate`}>
+                              <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 feedback-title truncate`}>
                                 Pull Request #{fb.prId} – {fb.model}
                               </h5>
-                              <button
-                                onClick={() => toggleCollapse(fb.id)}
-                                className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
-                                aria-label={`Toggle feedback for PR ${fb.prId}`}
-                                aria-expanded={!collapsedFeedbacks[fb.id]}
-                              >
-                                {collapsedFeedbacks[fb.id] ? <FaChevronDown /> : <FaChevronUp />}
-                              </button>
+                              <div className="flex items-center">
+                                <span className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'} ml-2 feedback-repo truncate`}>
+                                  {fb.repoFullName}
+                                </span>
+                                <button
+                                  onClick={() => toggleCollapse(fb.id)}
+                                  className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                                  aria-label={`Toggle feedback for PR ${fb.prId}`}
+                                  aria-expanded={!collapsedFeedbacks[fb.id]}
+                                >
+                                  {collapsedFeedbacks[fb.id] ? <FaChevronDown /> : <FaChevronUp />}
+                                </button>
+                              </div>
                             </div>
                             <div
                               ref={el => (feedbackRefs.current[fb.id] = el)}
@@ -1009,7 +1011,7 @@ export default function UserPage() {
           width: auto;
           min-width: 100%;
           max-width: 500px; /* Prevent overly wide dropdowns */
-          z-index: 60; /* Higher than Current AI Model card (z-50) */
+          z-index: 60; /* Above cards but below aspects dropdown */
         }
         .ai-dropdown .dropdown-item {
           color: ${theme === 'light' ? 'black' : 'white'};
@@ -1023,35 +1025,37 @@ export default function UserPage() {
         .ai-dropdown .dropdown-item.active {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
         }
-
         #repo-dropdown {
-          display: inline-flex;        
+          display: inline-flex;
           align-items: center;
-          max-width: 220px;              
+          max-width: 220px;
           padding: 0.375rem 0.75rem;
           font-size: 0.875rem;
-          white-space: nowrap;           
-          overflow: hidden;              
-          text-overflow: ellipsis;       
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
         }
         #repo-dropdown .btn {
           display: inline-block;
           width: auto;
-          min-width: 100px; 
-          max-width: 100px; 
+          min-width: 100px;
+          max-width: 100px;
           padding: 0.5rem 1rem;
         }
         #repo-dropdown .dropdown-menu {
           min-width: 220px;
           max-width: 280px;
-          white-space: normal;           
+          white-space: normal;
           word-break: break-word;
+          z-index: 70; /* Ensure repo dropdown is above AI model dropdown */
         }
-
         .repo-dropdown-wrapper {
-          display: inline-block; 
-          width: auto; 
-          max-width: 200px; 
+          display: inline-block;
+          width: auto;
+          max-width: 200px;
+        }
+        .aspects-dropdown-list {
+          z-index: 1000; /* Highest z-index for aspects dropdown list */
         }
       `}</style>
     </div>
