@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -218,6 +219,28 @@ public class UserController {
             log.error("Eroare neașteptată la verificarea webhook-ului", e);
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Eroare internă la verificarea webhook-ului", e);
         }
+    }
+
+    @GetMapping("/{username}/aspects")
+    public ResponseEntity<List<String>> getReviewAspects(@PathVariable String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+        List<String> aspects = user.getReviewAspectsList();
+        if (aspects == null || aspects.isEmpty()) {
+            aspects = Arrays.asList(
+                    "Summary",
+                    "Syntax & Style",
+                    "Correctness & Logic",
+                    "Potential Bugs",
+                    "Security Considerations",
+                    "Performance & Scalability",
+                    "Maintainability & Readability",
+                    "Documentation & Comments",
+                    "Best practices & Design Principles",
+                    "Recommendations"
+            );
+        }
+        return ResponseEntity.ok(aspects);
     }
 
     /**
