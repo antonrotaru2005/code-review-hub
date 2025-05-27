@@ -1,73 +1,131 @@
+// AdminController.java
 package com.review.reviewservice.controller;
 
-import com.review.reviewservice.dto.FeedbackDto;
+import com.review.reviewservice.dto.TeamDto;
 import com.review.reviewservice.dto.UserDto;
+import com.review.reviewservice.dto.FeedbackDto;
 import com.review.reviewservice.dto.UserStatsDto;
+import com.review.reviewservice.model.entity.Role;
+import com.review.reviewservice.model.entity.User;
+import com.review.reviewservice.service.TeamService;
 import com.review.reviewservice.service.FeedbackService;
 import com.review.reviewservice.service.StatisticsService;
-import com.review.reviewservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
-@PreAuthorize("hasRole('ADMIN')")
+@PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
 public class AdminController {
-    private final UserService userService;
+    private final TeamService teamService;
     private final FeedbackService feedbackService;
     private final StatisticsService statisticsService;
 
     @Autowired
-    public AdminController(UserService userService, FeedbackService feedbackService, StatisticsService statisticsService) {
-        this.userService = userService;
+    public AdminController(
+            TeamService teamService,
+            FeedbackService feedbackService,
+            StatisticsService statisticsService
+    ) {
+        this.teamService = teamService;
         this.feedbackService = feedbackService;
         this.statisticsService = statisticsService;
     }
 
     /**
-     * List all registered users (admin only).
-     * @return list of UserDto
+     * GET /api/admin/teams
+     * - ROLE_ADMIN: all teams
+     * - ROLE_TEAM_ADMIN: only teams they created
      */
-    @GetMapping("/users")
-    public List<UserDto> listAllUsers() {
-        return userService.getAllUsers();
+    @GetMapping("/teams")
+    public ResponseEntity<List<TeamDto>> listTeams(
+            @AuthenticationPrincipal OAuth2User oauthUser
+    ) {
+        boolean isAdmin = oauthUser.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        String me = oauthUser.getAttribute("username");
+
+        List<TeamDto> dtos = (isAdmin
+                ? teamService.getAllTeams()
+                : teamService.getTeamsCreatedBy(me)
+        ).stream()
+                .map(TeamDto::fromEntity)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(dtos);
     }
 
     /**
-     * List all feedback entries (admin only).
-     * @return list of FeedbackDto
+     * GET /api/admin/teams/{id}/members
+     * - ROLE_ADMIN: any team
+     * - ROLE_TEAM_ADMIN: only if they created this team
      */
-    @GetMapping("/feedbacks")
-    public List<FeedbackDto> listAllFeedbacks() {
-        return feedbackService.getAllFeedbacks();
+    @GetMapping("/teams/{id}/members")
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
+    public ResponseEntity<List<UserDto>> listTeamMembers(
+            @PathVariable Long id
+    ) {
+        List<User> members = teamService.getTeamMembers(id);
+        List<UserDto> dtos = members.stream()
+                .map(u -> new UserDto(
+                        u.getUsername(),
+                        u.getName(),
+                        u.getEmail(),
+                        u.getAvatar(),
+                        u.getAiModel(),
+                        u.getRoles().stream().map(Role::getName).toList()
+                ))
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     /**
-     * List feedback entries by specific user (admin only).
-     * @param username the username of the user
-     * @return list of FeedbackDto
+     * GET /api/admin/teams/{id}/members/{username}/feedbacks
+     * Show feedbacks for a team member
      */
-    @GetMapping("/users/{username}/feedbacks")
-    public List<FeedbackDto> listFeedbacksByUser(@PathVariable String username) {
-        return feedbackService.getByUser(username);
+    @GetMapping("/teams/{id}/members/{username}/feedbacks")
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
+    public ResponseEntity<List<FeedbackDto>> listFeedbacksByMember(
+            @PathVariable Long id,
+            @PathVariable String username
+    ) {
+        List<FeedbackDto> dtos = feedbackService.getByUser(username);
+        return ResponseEntity.ok(dtos);
     }
 
     /**
-     * Delete a feedback entry by ID (admin only).
-     * @param id the feedback ID
+     * GET /api/admin/teams/{id}/members/{username}/stats
+     * Show stats for a team member
      */
-    @DeleteMapping("/feedbacks/{id}")
-    public void deleteFeedback(@PathVariable Long id) {
-        feedbackService.deleteById(id);
-    }
-
-    @GetMapping("/users/{username}/stats")
-    public ResponseEntity<UserStatsDto> getUserStats(@PathVariable String username) {
+    @GetMapping("/teams/{id}/members/{username}/stats")
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
+    public ResponseEntity<UserStatsDto> getUserStats(
+            @PathVariable Long id,
+            @PathVariable String username
+    ) {
         UserStatsDto dto = statisticsService.getStatsForUser(username);
         return ResponseEntity.ok(dto);
+    }
+
+    /**
+     * DELETE /api/admin/teams/{id}/members/{username}/feedbacks/{feedbackId}
+     * Delete a feedback entry for a team member
+     */
+    @DeleteMapping("/teams/{id}/members/{username}/feedbacks/{feedbackId}")
+    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
+    public ResponseEntity<Void> deleteMemberFeedback(
+            @PathVariable Long id,
+            @PathVariable String username,
+            @PathVariable Long feedbackId
+    ) {
+        feedbackService.deleteById(feedbackId);
+        return ResponseEntity.noContent().build();
     }
 }

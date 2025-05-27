@@ -1,14 +1,13 @@
 package com.review.reviewservice.service;
 
+import com.review.reviewservice.exceptions.AccessDeniedException;
+import com.review.reviewservice.exceptions.ResourceNotFoundException;
 import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.repository.TeamRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.RoleRepository;
-import com.review.reviewservice.exceptions.ResourceNotFoundException;
-import com.review.reviewservice.exceptions.AccessDeniedException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +20,6 @@ public class TeamService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
 
-    @Autowired
     public TeamService(TeamRepository teamRepository,
                        UserRepository userRepository,
                        RoleRepository roleRepository) {
@@ -84,6 +82,13 @@ public class TeamService {
         return List.copyOf(team.getMembers());
     }
 
+    // Overload without auth check for admin endpoints
+    @Transactional(readOnly = true)
+    public List<User> getTeamMembers(Long teamId) {
+        Team team = findById(teamId);
+        return List.copyOf(team.getMembers());
+    }
+
     @Transactional(readOnly = true)
     public boolean isTeamAdmin(Long teamId, String username) {
         Team team = findById(teamId);
@@ -107,6 +112,18 @@ public class TeamService {
     public List<Team> getTeamsForUser(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        return new ArrayList<>(user.getTeams());
+        return new ArrayList<>(user.getCreatedTeams());
+    }
+
+    @Transactional(readOnly = true)
+    public List<Team> getAllTeams() {
+        return teamRepository.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Team> getTeamsCreatedBy(String username) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        return teamRepository.findAllByCreatedBy(user);
     }
 }
