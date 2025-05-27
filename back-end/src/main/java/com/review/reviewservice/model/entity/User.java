@@ -2,6 +2,7 @@ package com.review.reviewservice.model.entity;
 
 import jakarta.persistence.*;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -46,7 +47,10 @@ public class User {
     private AiModel aiModel;
 
     @Column(name = "review_aspects", columnDefinition = "TEXT", nullable = false)
-    private String reviewAspects;
+    private String reviewAspects =
+            "Summary,Syntax & Style,Correctness & Logic,Potential Bugs,"
+                    + "Security Considerations,Performance & Scalability,Maintainability & Readability,"
+                    + "Documentation & Comments,Best Practices & Design Principles,Recommendations";
 
     /** Helper: get as List<String> */
     public List<String> getReviewAspectsList() {
@@ -62,13 +66,14 @@ public class User {
     }
 
     @ManyToMany(mappedBy = "members")
+    @EqualsAndHashCode.Exclude
     private Set<Team> teams = new HashSet<>();
 
-    // 2.2. echipele pe care le-a creat (unde e team-admin)
     @OneToMany(
             mappedBy = "createdBy",
             cascade = CascadeType.ALL,
             orphanRemoval = true
     )
+    @EqualsAndHashCode.Exclude
     private Set<Team> createdTeams = new HashSet<>();
 }
