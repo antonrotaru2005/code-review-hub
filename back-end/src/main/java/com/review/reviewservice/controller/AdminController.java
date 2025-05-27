@@ -1,4 +1,3 @@
-// AdminController.java
 package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.TeamDto;
@@ -6,10 +5,12 @@ import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.dto.FeedbackDto;
 import com.review.reviewservice.dto.UserStatsDto;
 import com.review.reviewservice.model.entity.Role;
+import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.service.TeamService;
 import com.review.reviewservice.service.FeedbackService;
 import com.review.reviewservice.service.StatisticsService;
+import com.review.reviewservice.service.UserService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -24,25 +25,40 @@ import java.util.stream.Collectors;
 @RequestMapping("/api/admin")
 @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
 public class AdminController {
+    private final UserService userService;
     private final TeamService teamService;
     private final FeedbackService feedbackService;
     private final StatisticsService statisticsService;
 
     @Autowired
     public AdminController(
+            UserService userService,
             TeamService teamService,
             FeedbackService feedbackService,
             StatisticsService statisticsService
     ) {
+        this.userService = userService;
         this.teamService = teamService;
         this.feedbackService = feedbackService;
         this.statisticsService = statisticsService;
     }
 
     /**
+     * GET /api/admin/users
+     * – ROLE_ADMIN: all users
+     * – ROLE_TEAM_ADMIN: *not* allowed here
+     */
+    @GetMapping("/users")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserDto>> listAllUsers() {
+        List<UserDto> users = userService.getAllUsers();
+        return ResponseEntity.ok(users);
+    }
+
+    /**
      * GET /api/admin/teams
-     * - ROLE_ADMIN: all teams
-     * - ROLE_TEAM_ADMIN: only teams they created
+     * – ROLE_ADMIN: all teams
+     * – ROLE_TEAM_ADMIN: only those they created
      */
     @GetMapping("/teams")
     public ResponseEntity<List<TeamDto>> listTeams(
@@ -64,14 +80,12 @@ public class AdminController {
 
     /**
      * GET /api/admin/teams/{id}/members
-     * - ROLE_ADMIN: any team
-     * - ROLE_TEAM_ADMIN: only if they created this team
+     * – ROLE_ADMIN: any team
+     * – ROLE_TEAM_ADMIN: only if creator
      */
     @GetMapping("/teams/{id}/members")
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
-    public ResponseEntity<List<UserDto>> listTeamMembers(
-            @PathVariable Long id
-    ) {
+    public ResponseEntity<List<UserDto>> listTeamMembers(@PathVariable Long id) {
         List<User> members = teamService.getTeamMembers(id);
         List<UserDto> dtos = members.stream()
                 .map(u -> new UserDto(
@@ -80,7 +94,8 @@ public class AdminController {
                         u.getEmail(),
                         u.getAvatar(),
                         u.getAiModel(),
-                        u.getRoles().stream().map(Role::getName).toList()
+                        u.getRoles().stream().map(Role::getName).toList(),
+                        u.getTeams().stream().map(Team::getName).toList()
                 ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
@@ -88,7 +103,6 @@ public class AdminController {
 
     /**
      * GET /api/admin/teams/{id}/members/{username}/feedbacks
-     * Show feedbacks for a team member
      */
     @GetMapping("/teams/{id}/members/{username}/feedbacks")
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
@@ -96,13 +110,11 @@ public class AdminController {
             @PathVariable Long id,
             @PathVariable String username
     ) {
-        List<FeedbackDto> dtos = feedbackService.getByUser(username);
-        return ResponseEntity.ok(dtos);
+        return ResponseEntity.ok(feedbackService.getByUser(username));
     }
 
     /**
      * GET /api/admin/teams/{id}/members/{username}/stats
-     * Show stats for a team member
      */
     @GetMapping("/teams/{id}/members/{username}/stats")
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
@@ -110,13 +122,11 @@ public class AdminController {
             @PathVariable Long id,
             @PathVariable String username
     ) {
-        UserStatsDto dto = statisticsService.getStatsForUser(username);
-        return ResponseEntity.ok(dto);
+        return ResponseEntity.ok(statisticsService.getStatsForUser(username));
     }
 
     /**
      * DELETE /api/admin/teams/{id}/members/{username}/feedbacks/{feedbackId}
-     * Delete a feedback entry for a team member
      */
     @DeleteMapping("/teams/{id}/members/{username}/feedbacks/{feedbackId}")
     @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")

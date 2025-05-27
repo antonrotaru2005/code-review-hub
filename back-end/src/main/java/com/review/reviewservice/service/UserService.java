@@ -3,6 +3,7 @@ package com.review.reviewservice.service;
 import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.Role;
+import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,13 +48,18 @@ public class UserService {
                 ? user.getAiModel()
                 : null;
 
+        List<String> teams = user.getTeams().stream()
+                .map(Team::getName)
+                .toList();
+
         return new UserDto(
                 user.getUsername(),
                 user.getName(),
                 user.getEmail(),
                 user.getAvatar(),
                 aiModel,
-                roles
+                roles,
+                teams
         );
     }
 }

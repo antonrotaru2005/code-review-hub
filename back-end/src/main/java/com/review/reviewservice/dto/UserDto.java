@@ -13,5 +13,6 @@ public record UserDto(
         String email,
         String avatar,
         AiModel aiModel,
-        List<String> roles
+        List<String> roles,
+        List<String> teamNames
 ) {}

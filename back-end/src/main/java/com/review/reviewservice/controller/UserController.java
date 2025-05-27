@@ -1,10 +1,7 @@
 package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.UserDto;
-import com.review.reviewservice.model.entity.AiModel;
-import com.review.reviewservice.model.entity.Role;
-import com.review.reviewservice.model.entity.User;
-import com.review.reviewservice.model.entity.WebhookToken;
+import com.review.reviewservice.model.entity.*;
 import com.review.reviewservice.model.repository.FeedbackRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.AiModelRepository;
@@ -82,7 +79,11 @@ public class UserController {
                 .map(Role::getName)
                 .toList();
 
-        return new UserDto(username, displayName, email, avatarUrl, ai_model, roles);
+        List<String> teams = appUser.getTeams().stream()
+                .map(Team::getName)
+                .toList();
+
+        return new UserDto(username, displayName, email, avatarUrl, ai_model, roles, teams);
     }
 
     /**

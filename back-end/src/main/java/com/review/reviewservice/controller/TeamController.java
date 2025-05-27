@@ -4,6 +4,7 @@ import com.review.reviewservice.dto.CreateTeamDto;
 import com.review.reviewservice.dto.TeamDto;
 import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.Role;
+import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.service.TeamService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -93,7 +94,8 @@ public class TeamController {
                         u.getEmail(),
                         u.getAvatar(),
                         u.getAiModel(),
-                        u.getRoles().stream().map(Role::getName).toList()
+                        u.getRoles().stream().map(Role::getName).toList(),
+                        u.getTeams().stream().map(Team::getName).toList()
                 ))
                 .collect(Collectors.toList());
         return ResponseEntity.ok(members);

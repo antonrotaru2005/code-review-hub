@@ -1,5 +1,6 @@
 package com.review.reviewservice.dto;
 
+import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.Team;
 
 import java.util.List;
@@ -18,7 +19,8 @@ public record TeamDto(
                         u.getEmail(),
                         u.getAvatar(),
                         u.getAiModel(),
-                        u.getRoles().stream().map(r -> r.getName()).toList()
+                        u.getRoles().stream().map(Role::getName).toList(),
+                        u.getTeams().stream().map(Team::getName).toList()
                 ))
                 .toList();
         return new TeamDto(
