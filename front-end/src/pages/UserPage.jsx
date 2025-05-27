@@ -71,6 +71,7 @@ export default function UserPage() {
   const [selectedRepo, setSelectedRepo] = useState('all');
   const [searchId, setSearchId] = useState('');
   const [showRepoWarning, setShowRepoWarning] = useState(false);
+  const [aspectWarningPopup, setAspectWarningPopup] = useState({ visible: false, message: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -165,16 +166,30 @@ export default function UserPage() {
   const handleAspectChange = async (aspect) => {
     let updatedAspects;
     if (selectedAspects.includes(aspect)) {
+      // Încercăm să debifăm un aspect
       updatedAspects = selectedAspects.filter(a => a !== aspect);
+      if (updatedAspects.length === 0) {
+        // Afișăm pop-up-ul de avertizare
+        setAspectWarningPopup({ visible: true, message: 'Trebuie să păstrați cel puțin un aspect bifat.' });
+        setTimeout(() => setAspectWarningPopup({ visible: false, message: null }), 3000); // Ascunde după 3 secunde
+        return;
+      }
     } else {
+      // Bifăm un aspect
       updatedAspects = [...selectedAspects, aspect];
     }
+    // Sortăm aspectele conform ordinii din allReviewAspects
+    updatedAspects = updatedAspects.sort((a, b) => 
+      allReviewAspects.indexOf(a) - allReviewAspects.indexOf(b)
+    );
+    console.log('Updated aspects:', updatedAspects);
     setSelectedAspects(updatedAspects);
     try {
       await updateUserReviewAspects(user.username, updatedAspects);
     } catch (error) {
       console.error('Failed to update review aspects:', error);
-      setError('Failed to update review aspects. Please try again.');
+      setError('Eroare la actualizarea aspectelor. Încercați din nou.');
+      setTimeout(() => setError(null), 3000);
     }
   };
 
@@ -221,7 +236,7 @@ export default function UserPage() {
     if (isNaN(searchNum)) return;
 
     // Filter feedbacks by PR ID, optionally restricting to selectedRepo if not 'all'
-    const filteredFeedbacks = feedbacks.filter(fb => 
+    const filteredFeedbacks = feedbacks.filteredFeedbacks(fb => 
       fb.prId === searchNum && 
       (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
     );
@@ -270,6 +285,7 @@ export default function UserPage() {
         }
         try {
           const aspects = await getUserReviewAspects(u.username);
+          console.log('Review aspects received:', aspects);
           setReviewAspects(aspects);
           setSelectedAspects(aspects);
         } catch (aspectErr) {
@@ -279,7 +295,7 @@ export default function UserPage() {
             stack: aspectErr.stack
           });
           setReviewAspects(allReviewAspects);
-          setSelectedAspects(allReviewAspects);
+          setSelectedAspects([]);
         }
         try {
           const response = await fetch('/api/user/webhook-token', {
@@ -467,13 +483,6 @@ export default function UserPage() {
 
   const handleLogout = async () => {
     try {
-      if (webhookEnabled) {
-        try {
-          await disableWebhookToken();
-        } catch (tokenErr) {
-          console.error('Failed to disable webhook token:', tokenErr);
-        }
-      }
       const response = await fetch('/logout', {
         method: 'POST',
         credentials: 'include',
@@ -488,11 +497,6 @@ export default function UserPage() {
       return;
     }
     setUser(null);
-    setToken(null);
-    setWebhookEnabled(false);
-    setStage(null);
-    setDone(false);
-    setPopup({ visible: false, stage: null, prId: null });
     localStorage.clear();
     document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
     navigate('/');
@@ -586,6 +590,18 @@ export default function UserPage() {
         >
           <div className="flex items-center justify-center">
             <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>Choose the repository first</span>
+          </div>
+        </div>
+      )}
+
+      {/* Pop-up Notification for Aspect Warning */}
+      {aspectWarningPopup.visible && (
+        <div
+          className={`fixed top-5 left-50% w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+        >
+          <div className="flex items-center justify-center">
+            <span className={`text-${theme === 'light' ? 'black' : 'white'}`}>{aspectWarningPopup.message}</span>
           </div>
         </div>
       )}
@@ -699,6 +715,11 @@ export default function UserPage() {
                   </span>
                   <FaCaretDown className={theme === 'light' ? 'text-black' : 'text-white'} />
                 </div>
+                {error && (
+                  <div className={`mt-2 text-sm text-red-500 text-center`}>
+                    {error}
+                  </div>
+                )}
                 {aspectsDropdownOpen && (
                   <div className={`aspects-dropdown-list absolute left-1/2 transform -translate-x-1/2 mt-2 w-64 max-h-48 overflow-y-auto ${theme === 'light' ? 'bg-white/90' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg p-4`}>
                     {allReviewAspects.map(aspect => (
