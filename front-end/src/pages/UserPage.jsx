@@ -126,7 +126,7 @@ export default function UserPage() {
     'Performance & Scalability',
     'Maintainability & Readability',
     'Documentation & Comments',
-    'Best practices & Design Principles',
+    'Best Practices & Design Principles',
     'Recommendations'
   ];
 
@@ -170,7 +170,7 @@ export default function UserPage() {
       updatedAspects = selectedAspects.filter(a => a !== aspect);
       if (updatedAspects.length === 0) {
         // Afișăm pop-up-ul de avertizare
-        setAspectWarningPopup({ visible: true, message: 'Trebuie să păstrați cel puțin un aspect bifat.' });
+        setAspectWarningPopup({ visible: true, message: 'You must keep at least one aspect.' });
         setTimeout(() => setAspectWarningPopup({ visible: false, message: null }), 3000); // Ascunde după 3 secunde
         return;
       }
@@ -288,6 +288,7 @@ export default function UserPage() {
           console.log('Review aspects received:', aspects);
           setReviewAspects(aspects);
           setSelectedAspects(aspects);
+          console.log('Selected aspects set:', aspects);
         } catch (aspectErr) {
           console.error('Failed to load review aspects:', {
             message: aspectErr.message,

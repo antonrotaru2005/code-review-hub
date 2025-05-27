@@ -5,6 +5,7 @@ import com.review.reviewservice.dto.TeamDto;
 import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.service.TeamService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -20,8 +21,20 @@ public class TeamController {
 
     private final TeamService teamService;
 
+    @Autowired
     public TeamController(TeamService teamService) {
         this.teamService = teamService;
+    }
+
+    @GetMapping
+    public ResponseEntity<List<TeamDto>> getMyTeams(
+            @AuthenticationPrincipal OAuth2User oauthUser
+    ) {
+        String username = oauthUser.getAttribute("username");
+        List<TeamDto> dtos = teamService.getTeamsForUser(username).stream()
+                .map(TeamDto::fromEntity)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     @PostMapping
@@ -55,7 +68,7 @@ public class TeamController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@teamService.isTeamAdmin(#id, principal.username) or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("@teamService.isTeamAdmin(#id, principal.username) or hasRole('ROLE_TEAM_ADMIN')")
     public ResponseEntity<Void> deleteTeam(
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
@@ -66,7 +79,7 @@ public class TeamController {
     }
 
     @GetMapping("/{id}/members")
-    @PreAuthorize("@teamService.isTeamMember(#id, principal.username) or hasRole('ROLE_ADMIN')")
+    @PreAuthorize("@teamService.isTeamMember(#id, principal.username) or hasRole('ROLE_TEAM_ADMIN')")
     public ResponseEntity<List<UserDto>> getMembers(
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
