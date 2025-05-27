@@ -60,4 +60,15 @@ public class User {
     public void setReviewAspectsList(List<String> aspects) {
         this.reviewAspects = String.join(",", aspects);
     }
+
+    @ManyToMany(mappedBy = "members")
+    private Set<Team> teams = new HashSet<>();
+
+    // 2.2. echipele pe care le-a creat (unde e team-admin)
+    @OneToMany(
+            mappedBy = "createdBy",
+            cascade = CascadeType.ALL,
+            orphanRemoval = true
+    )
+    private Set<Team> createdTeams = new HashSet<>();
 }
