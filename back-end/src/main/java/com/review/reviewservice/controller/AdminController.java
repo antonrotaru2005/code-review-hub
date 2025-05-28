@@ -46,13 +46,35 @@ public class AdminController {
     /**
      * GET /api/admin/users
      * – ROLE_ADMIN: all users
-     * – ROLE_TEAM_ADMIN: *not* allowed here
+     * – ROLE_TEAM_ADMIN: not allowed
      */
     @GetMapping("/users")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDto>> listAllUsers() {
         List<UserDto> users = userService.getAllUsers();
         return ResponseEntity.ok(users);
+    }
+
+    /**
+     * GET /api/admin/users/{username}/feedbacks
+     * – ROLE_ADMIN: access any user’s feedback
+     * – ROLE_TEAM_ADMIN: only for users in teams they manage
+     */
+    @GetMapping("/users/{username}/feedbacks")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
+    public ResponseEntity<List<FeedbackDto>> listFeedbacksByUser(@PathVariable String username) {
+        return ResponseEntity.ok(feedbackService.getByUser(username));
+    }
+
+    /**
+     * GET /api/admin/users/{username}/stats
+     * – ROLE_ADMIN: access any user’s stats
+     * – ROLE_TEAM_ADMIN: only for users in teams they manage
+     */
+    @GetMapping("/users/{username}/stats")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
+    public ResponseEntity<UserStatsDto> getUserStats(@PathVariable String username) {
+        return ResponseEntity.ok(statisticsService.getStatsForUser(username));
     }
 
     /**
@@ -66,11 +88,11 @@ public class AdminController {
     ) {
         boolean isAdmin = oauthUser.getAuthorities().stream()
                 .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
-        String me = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute("username");
 
         List<TeamDto> dtos = (isAdmin
                 ? teamService.getAllTeams()
-                : teamService.getTeamsCreatedBy(me)
+                : teamService.getTeamsCreatedBy(username)
         ).stream()
                 .map(TeamDto::fromEntity)
                 .collect(Collectors.toList());
@@ -84,8 +106,8 @@ public class AdminController {
      * – ROLE_TEAM_ADMIN: only if creator
      */
     @GetMapping("/teams/{id}/members")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
-    public ResponseEntity<List<UserDto>> listTeamMembers(@PathVariable Long id) {
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
+    public ResponseEntity<List<UserDto>> listMembers(@PathVariable Long id) {
         List<User> members = teamService.getTeamMembers(id);
         List<UserDto> dtos = members.stream()
                 .map(u -> new UserDto(
@@ -102,23 +124,13 @@ public class AdminController {
     }
 
     /**
-     * GET /api/admin/teams/{id}/members/{username}/feedbacks
-     */
-    @GetMapping("/teams/{id}/members/{username}/feedbacks")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
-    public ResponseEntity<List<FeedbackDto>> listFeedbacksByMember(
-            @PathVariable Long id,
-            @PathVariable String username
-    ) {
-        return ResponseEntity.ok(feedbackService.getByUser(username));
-    }
-
-    /**
      * GET /api/admin/teams/{id}/members/{username}/stats
+     * – ROLE_ADMIN: any team member
+     * – ROLE_TEAM_ADMIN: only for their team
      */
     @GetMapping("/teams/{id}/members/{username}/stats")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
-    public ResponseEntity<UserStatsDto> getUserStats(
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
+    public ResponseEntity<UserStatsDto> getMemberStats(
             @PathVariable Long id,
             @PathVariable String username
     ) {
@@ -127,14 +139,27 @@ public class AdminController {
 
     /**
      * DELETE /api/admin/teams/{id}/members/{username}/feedbacks/{feedbackId}
+     * – ROLE_ADMIN: any feedback
+     * – ROLE_TEAM_ADMIN: only for their team
      */
     @DeleteMapping("/teams/{id}/members/{username}/feedbacks/{feedbackId}")
-    @PreAuthorize("hasRole('ADMIN') or @teamService.isTeamAdmin(#id, principal.username)")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('TEAM_ADMIN')")
     public ResponseEntity<Void> deleteMemberFeedback(
             @PathVariable Long id,
             @PathVariable String username,
             @PathVariable Long feedbackId
     ) {
+        feedbackService.deleteById(feedbackId);
+        return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * DELETE /api/admin/feedbacks/{feedbackId}
+     * – ROLE_ADMIN: delete any feedback
+     */
+    @DeleteMapping("/feedbacks/{feedbackId}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Void> deleteFeedback(@PathVariable Long feedbackId) {
         feedbackService.deleteById(feedbackId);
         return ResponseEntity.noContent().build();
     }

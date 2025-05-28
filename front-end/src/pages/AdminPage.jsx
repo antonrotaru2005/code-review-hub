@@ -3,7 +3,7 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { sendChat } from '../api/chat';
 import { getUserInfo } from '../api/user';
-import { getAdminUsers, getUserStats, getAdminFeedbacksByUser, deleteFeedback } from '../api/admin';
+import { getAdminUsers, getAdminTeams, getTeamMembers, getAdminFeedbacksByUser, getUserStats, deleteMemberFeedback } from '../api/admin';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaSun, FaMoon, FaCaretDown, FaChevronDown, FaChevronUp } from 'react-icons/fa';
 import { useTheme } from '../contexts/ThemeContext';
@@ -16,7 +16,7 @@ ChartJS.register(CategoryScale, LinearScale, Title, Tooltip, Legend, ArcElement)
 const centerTextPlugin = {
   id: 'centerText',
   beforeDraw(chart) {
-    const { ctx, chartArea, data } = chart;
+    const { ctx, chartArea } = chart;
     if (!chart.options.plugins.centerText || !chart.options.plugins.centerText.text) return;
 
     ctx.save();
@@ -39,6 +39,7 @@ ChartJS.register(centerTextPlugin);
 export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [user, setUser] = useState(null);
   const [selectedUser, setSelectedUser] = useState(null);
   const [stats, setStats] = useState(null);
@@ -47,9 +48,12 @@ export default function AdminPage() {
   const [error, setError] = useState(null);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [viewMode, setViewMode] = useState('teams');
+  const [expandedTeams, setExpandedTeams] = useState({});
+  const [teamMembers, setTeamMembers] = useState({});
   const [chatMessages, setChatMessages] = useState(() => {
     try {
-      const saved = window.localStorage.getItem('chatMessages');
+      const saved = localStorage.getItem('chatMessages');
       return saved ? JSON.parse(saved) : [];
     } catch (e) {
       return [];
@@ -63,6 +67,8 @@ export default function AdminPage() {
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
 
+  const isSuperAdmin = user?.roles?.includes('ROLE_ADMIN');
+
   const handleThemeSelect = (selectedTheme) => {
     setTheme(selectedTheme);
     setThemeOptionsOpen(false);
@@ -72,28 +78,64 @@ export default function AdminPage() {
   const handleToggleTheme = () => setThemeOptionsOpen(!themeOptionsOpen);
 
   const toggleCollapse = () => {
-    setCollapsedFeedback(prev => !prev);
+    setCollapsedFeedback((prev) => !prev);
+  };
+
+  const toggleTeamExpand = async (teamId) => {
+    setExpandedTeams((prev) => ({
+      ...prev,
+      [teamId]: !prev[teamId],
+    }));
+
+    if (!teamMembers[teamId]) {
+      try {
+        const members = await getTeamMembers(teamId);
+        setTeamMembers((prev) => ({
+          ...prev,
+          [teamId]: members,
+        }));
+      } catch (e) {
+        setError('Failed to fetch team members.');
+      }
+    }
   };
 
   useEffect(() => {
     async function initAdmin() {
       try {
         const adminUser = await getUserInfo();
+        console.log(adminUser);
+        
         if (!adminUser) {
           throw new Error('You are not logged in. Please log in or sign up to access this page.');
-        } else if (!adminUser.roles?.includes('ROLE_ADMIN')) {
-          throw new Error('You do not have access to this page.');
+        }
+        if (!adminUser.roles?.includes('ROLE_ADMIN') && !adminUser.roles?.includes('ROLE_TEAM_ADMIN')) {
+          throw new Error('You do not have sufficient privileges to access the Admin Panel.');
         }
         setUser(adminUser);
-        const list = await getAdminUsers();
-        setUsers(list);
+
+        if (adminUser.roles?.includes('ROLE_ADMIN')) {
+          // Super Admin: Load both users and teams
+          const [userList, teamList] = await Promise.all([
+            getAdminUsers(),
+            getAdminTeams(),
+          ]);
+          setUsers(userList);
+          setTeams(teamList);
+        } else if (adminUser.roles?.includes('ROLE_TEAM_ADMIN')) {
+          // Team Admin: Load only teams
+          setViewMode('teams');
+          const teamList = await getAdminTeams();
+          setTeams(teamList);
+        }
       } catch (e) {
-        console.error('Fetch failed:', e, { message: e.message, status: e.status });
+        console.error('Fetch failed:', e);
         if (
           e.message.includes('Failed to fetch') ||
           e.message.includes('401') ||
           e.message.includes('403')
         ) {
+          console.log(e.message)
           setError('You are not logged in. Please log in or sign up to access this page.');
         } else {
           setError(e.message);
@@ -115,50 +157,53 @@ export default function AdminPage() {
 
     if (dropdownOpen) {
       document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
   }, [dropdownOpen]);
 
   useEffect(() => {
     if (feedbackRef.current) {
-      feedbackRef.current.style.maxHeight = collapsedFeedback
-        ? '0px'
-        : `${feedbackRef.current.scrollHeight}px`;
+      feedbackRef.current.style.maxHeight = collapsedFeedback ? '0px' : `${feedbackRef.current.scrollHeight}px`;
     }
   }, [collapsedFeedback, latestFeedback]);
 
   const handleSend = async () => {
     const text = chatInput.trim();
     if (!text) return;
-    setChatMessages(prev => [...prev, { sender: 'user', text }]);
+
+    setChatMessages((prev) => [...prev, { sender: 'user', text }]);
     setChatInput('');
-    const history = [...chatMessages.map(m => ({ role: m.sender === 'user' ? 'user' : 'assistant', content: m.text })), { role: 'user', content: text }];
+    const history = [...chatMessages.map((msg) => ({
+      role: msg.sender === 'user' ? 'user' : 'assistant',
+      content: msg.text,
+    })), { role: 'user', content: text }];
+
     try {
       const aiModel = user?.aiModel;
       if (!aiModel) throw new Error('No AI model available');
-      const aiReply = await sendChat(aiModel.ai, aiModel.model, history);
-      setChatMessages(prev => [...prev, { sender: 'ai', text: aiReply }]);
+      const aiResponse = await sendChat(aiModel.ai, aiModel.model, history);
+      setChatMessages((prev) => [...prev, { sender: 'ai', text: aiResponse }]);
     } catch (err) {
-      setChatMessages(prev => [...prev, { sender: 'ai', text: '😢 Error in chat.' }]);
+      setChatMessages((prev) => [...prev, { sender: 'ai', text: '😢 Error in chat.' }]);
     }
   };
 
-  const handleUserSelect = async (user) => {
+  const handleUserSelect = async (user, teamId = null) => {
     setSelectedUser(user);
     setStats(null);
     setLatestFeedback(null);
     setCollapsedFeedback(true);
     setLoadingStats(true);
+
     try {
-      const userStats = await getUserStats(user.username);
-      setStats(userStats);
       const feedbacks = await getAdminFeedbacksByUser(user.username);
       setLatestFeedback(feedbacks.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))[0] || null);
-    } catch (e) {
-      setError('Failed to fetch user stats or feedback.');
+
+      const userStats = await getUserStats(teamId, user.username);
+      setStats(userStats);
+    } catch (err) {
+      console.error('Error fetching user data:', err);
+      setError(`Failed to fetch user stats or feedback: ${err.message}`);
     } finally {
       setLoadingStats(false);
     }
@@ -185,28 +230,32 @@ export default function AdminPage() {
     },
   };
 
-  const distinctReposChart = stats ? {
-    labels: Array.from({ length: stats.distinctRepoCount }, (_, i) => `Repo ${i + 1}`),
-    datasets: [{
-      data: Array.from({ length: stats.distinctRepoCount }, () => 1), // Equal slices
-      backgroundColor: [
-        theme === 'light' ? 'rgba(34, 97, 197, 0.7)' : 'rgba(168, 85, 247, 0.7)', // Green/Purple
-        theme === 'light' ? 'rgba(239, 68, 68, 0.7)' : 'rgba(236, 72, 153, 0.7)', // Red/Pink
-        theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(99, 102, 241, 0.7)', // Blue/Indigo
-        theme === 'light' ? 'rgba(249, 115, 22, 0.7)' : 'rgba(250, 204, 21, 0.7)', // Orange/Yellow
-        theme === 'light' ? 'rgba(147, 51, 234, 0.7)' : 'rgba(34, 197, 94, 0.7)', // Purple/Green
-      ].slice(0, stats.distinctRepoCount),
-      borderColor: [
-        theme === 'light' ? 'rgb(230, 230, 230)' : 'rgba(168, 85, 247, 1)',
-        theme === 'light' ? 'rgba(239, 68, 68, 1)' : 'rgba(236, 72, 153, 1)',
-        theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(99, 102, 241, 1)',
-        theme === 'light' ? 'rgba(249, 115, 22, 1)' : 'rgba(250, 204, 21, 1)',
-        theme === 'light' ? 'rgba(147, 51, 234, 1)' : 'rgba(34, 197, 94, 1)',
-      ].slice(0, stats.distinctRepoCount),
-      borderWidth: 2,
-      hoverOffset: 20,
-    }],
-  } : null;
+  const distinctReposChart = stats
+    ? {
+        labels: Array.from({ length: stats.distinctRepoCount }, (_, i) => `Repo ${i + 1}`),
+        datasets: [
+          {
+            data: Array.from({ length: stats.distinctRepoCount }, () => 1),
+            backgroundColor: [
+              theme === 'light' ? 'rgba(34, 97, 197, 0.7)' : 'rgba(168, 85, 247, 0.7)',
+              theme === 'light' ? 'rgba(239, 68, 68, 0.7)' : 'rgba(236, 72, 153, 0.7)',
+              theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(99, 102, 241, 0.7)',
+              theme === 'light' ? 'rgba(249, 115, 22, 0.7)' : 'rgba(250, 204, 21, 0.7)',
+              theme === 'light' ? 'rgba(147, 51, 234, 0.7)' : 'rgba(34, 197, 94, 0.7)',
+            ].slice(0, stats.distinctRepoCount),
+            borderColor: [
+              theme === 'light' ? 'rgb(230, 230, 230)' : 'rgba(168, 85, 247, 1)',
+              theme === 'light' ? 'rgba(239, 68, 68, 1)' : 'rgba(236, 72, 153, 1)',
+              theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(99, 102, 241, 1)',
+              theme === 'light' ? 'rgba(249, 115, 22, 1)' : 'rgba(250, 204, 21, 1)',
+              theme === 'light' ? 'rgba(147, 51, 234, 1)' : 'rgba(34, 197, 94, 1)',
+            ].slice(0, stats.distinctRepoCount),
+            borderWidth: 2,
+            hoverOffset: 20,
+          },
+        ],
+      }
+    : null;
 
   const distinctReposOptions = {
     ...baseChartOptions,
@@ -221,24 +270,28 @@ export default function AdminPage() {
     },
   };
 
-  const avgRateChart = stats ? {
-    labels: ['Rate', 'Remaining'],
-    datasets: [{
-      data: [stats.avgRate, 100 - stats.avgRate],
-      backgroundColor: [
-        theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(168, 85, 247, 0.7)',
-        theme === 'light' ? 'rgba(229, 231, 235, 0.4)' : 'rgba(55, 65, 81, 0.4)',
-      ],
-      borderColor: [
-        theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(168, 85, 247, 1)',
-        theme === 'light' ? 'rgba(229, 231, 235, 1)' : 'rgba(55, 65, 81, 1)',
-      ],
-      borderWidth: 2,
-      circumference: 180,
-      rotation: 270,
-      hoverOffset: 20,
-    }],
-  } : null;
+  const avgRateChart = stats
+    ? {
+        labels: ['Rate', 'Remaining'],
+        datasets: [
+          {
+            data: [stats.avgRate, 100 - stats.avgRate],
+            backgroundColor: [
+              theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(168, 85, 247, 0.7)',
+              theme === 'light' ? 'rgba(229, 231, 235, 0.4)' : 'rgba(55, 65, 81, 0.4)',
+            ],
+            borderColor: [
+              theme === 'light' ? 'rgba(59, 130, 246, 1)' : 'rgba(168, 85, 247, 1)',
+              theme === 'light' ? 'rgba(229, 231, 235, 1)' : 'rgba(55, 65, 81, 1)',
+            ],
+            borderWidth: 2,
+            circumference: 180,
+            rotation: 270,
+            hoverOffset: 20,
+          },
+        ],
+      }
+    : null;
 
   const avgRateOptions = {
     ...baseChartOptions,
@@ -260,10 +313,10 @@ export default function AdminPage() {
   if (error) {
     return (
       <div className={`min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
-        <div className={`relative z-10 ${theme === 'light' ? 'bg-white/70' : 'bg-black/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-${theme === 'light' ? 'text-black' : 'text-white'} text-center`}>
+        <div className={`relative z-10 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-2xl p-6 text-center`}>
           <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Authentication Required</h3>
           <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>{error}</p>
-          {error === 'You are not logged in. Please log in or sign up to access this page.' ? (
+          {error.includes('You are not logged in') ? (
             <div className="space-x-4">
               <Link to="/login" className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition no-underline`}>
                 Log In
@@ -295,8 +348,8 @@ export default function AdminPage() {
       </div>
 
       {/* Navbar */}
-      <nav className={`relative z-50 px-6 py-4 flex justify-between items-center`}>
-        <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
+      <nav className="relative z-50 px-6 py-4 flex justify-between items-center">
+        <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:underline`}>
           Code Review Hub - Admin
         </Link>
         <div className="relative" ref={dropdownRef}>
@@ -308,29 +361,32 @@ export default function AdminPage() {
               <img src={user.avatar} alt="Avatar" className="w-10 h-10 rounded-full object-cover" />
             ) : (
               <div className={`w-10 h-10 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center text-lg`}>
-                {user.name[0]}
+                {user?.name?.[0] || 'U'}
               </div>
             )}
             <FaCaretDown className={theme === 'light' ? 'text-black' : 'text-white'} />
           </div>
           {dropdownOpen && (
-            <div className={`absolute right-0 mt-2 w-48 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg z-50`}>
-              {user?.roles?.includes('ROLE_ADMIN') && (
+            <div className={`absolute right-0 mt-2 w-48 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-lg shadow-lg z-50`}>
+              {(isSuperAdmin || user?.roles?.includes('ROLE_TEAM_ADMIN')) && (
                 <button
-                  onClick={() => { handleSwitchToUser(); setDropdownOpen(false); }}
-                  className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'} rounded-t-lg`}
+                  onClick={() => {
+                    handleSwitchToUser();
+                    setDropdownOpen(false);
+                  }}
+                  className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'} rounded-t-lg`}
                 >
                   Switch to User
                 </button>
               )}
               <button
                 onClick={handleToggleTheme}
-                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'} ${!user?.roles?.includes('ROLE_ADMIN') ? 'rounded-t-lg' : ''}`}
+                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'}`}
               >
                 Theme
               </button>
               {themeOptionsOpen && (
-                <div className={`pl-4 py-2 ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                <div className="pl-4 py-2">
                   <label className="flex items-center cursor-pointer">
                     <input
                       type="radio"
@@ -342,7 +398,7 @@ export default function AdminPage() {
                     <FaSun className="mr-2 text-yellow-400" />
                     Light
                   </label>
-                  <label className="flex items-center mt-2 cursor-pointer">
+                  <label className="flex items-center cursor-pointer mt-2">
                     <input
                       type="radio"
                       name="theme"
@@ -350,14 +406,17 @@ export default function AdminPage() {
                       onChange={() => handleThemeSelect('dark')}
                       className="mr-2"
                     />
-                    <FaMoon className="mr-2 text-gray-300" />
+                    <FaMoon className="mr-2 text-blue-600" />
                     Dark
                   </label>
                 </div>
               )}
               <button
-                onClick={() => { handleLogout(); setDropdownOpen(false); }}
-                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'} rounded-b-lg`}
+                onClick={() => {
+                  handleLogout();
+                  setDropdownOpen(false);
+                }}
+                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'} rounded-b-lg`}
               >
                 Logout
               </button>
@@ -366,64 +425,122 @@ export default function AdminPage() {
         </div>
       </nav>
 
-      <main className={`relative z-40 px-6 py-6 flex-grow`}>
+      {/* Main Content */}
+      <main className="relative z-40 px-6 py-6 flex-grow">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
+          {/* Sidebar */}
           <div className="md:col-span-1 space-y-8">
-            <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
-              <h5 className={`mb-4 text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>All Users</h5>
-              <div className="space-y-3">
-                {users.map(u => (
-                  <div
-                    key={u.username}
-                    className={`p-3 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
-                    onClick={() => handleUserSelect(u)}
+            <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+              {isSuperAdmin && (
+                <div className="mb-4 flex gap-4">
+                  <button
+                    className={`px-4 py-2 rounded-full ${viewMode === 'users' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')}`}
+                    onClick={() => setViewMode('users')}
                   >
-                    {u.avatar ? (
-                      <img
-                        src={u.avatar}
-                        alt="Avatar"
-                        className="w-10 h-10 rounded-full object-cover mr-3"
-                        onError={(e) => (e.target.src = '')}
-                      />
-                    ) : (
+                    All Users
+                  </button>
+                  <button
+                    className={`px-4 py-2 rounded-full ${viewMode === 'teams' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')}`}
+                    onClick={() => setViewMode('teams')}
+                  >
+                    All Teams
+                  </button>
+                </div>
+              )}
+              <h5 className={`mb-4 text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{viewMode === 'users' ? 'All Users' : 'All Teams'}</h5>
+              <div className="space-y-3">
+                {viewMode === 'users' ? (
+                  users.map((u) => (
+                    <div
+                      key={u.username}
+                      className={`p-3 rounded-full bg-blue-200 cursor-pointer flex items-center justify-between ${selectedUser?.username === u.username ? 'bg-blue-100/50' : 'hover:bg-blue-600/30'} hover:bg-blue-100/40 transition-all duration-300 hover:bg-blue-700/40`}
+                      onClick={() => handleUserSelect(u)}
+                    >
+                      {u.avatar ? (
+                        <img
+                          src={u.avatar}
+                          alt="Avatar"
+                          className="w-10 h-10 rounded-full object-cover mr-3"
+                        />
+                      ) : (
+                        <div className={`w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-lg`}>
+                          {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
+                        </div>
+                      )}
+                      <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                    </div>
+                  ))
+                ) : (
+                  teams.map((team) => (
+                    <div key={team.id}>
                       <div
-                        className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-10 h-10 rounded-full flex items-center justify-center mr-3 text-lg`}
+                        className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100' : 'hover:bg-purple-600'}`}
+                        onClick={() => toggleTeamExpand(team.id)}
                       >
-                        {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
+                        <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{team.name}</span>
+                        {expandedTeams[team.id] ? (
+                          <FaChevronUp className={theme === 'light' ? 'text-black' : 'text-white'} />
+                        ) : (
+                          <FaChevronDown className={theme === 'light' ? 'text-black' : 'text-white'} />
+                        )}
                       </div>
-                    )}
-                    <span className={`text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
-                  </div>
-                ))}
+                      {expandedTeams[team.id] && teamMembers[team.id] && (
+                        <div className="ml-6 mt-2 space-y-2">
+                          {teamMembers[team.id].map((u) => (
+                            <div
+                              key={u.username}
+                              className={`p-2 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100' : 'hover:bg-purple-600/30')}`}
+                              onClick={() => handleUserSelect(u, team.id)}
+                            >
+                              {u.avatar ? (
+                                <img
+                                  src={u.avatar}
+                                  alt="Avatar"
+                                  className="w-8 h-8 rounded-full object-cover mr-2"
+                                />
+                              ) : (
+                                <div className={`w-8 h-8 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center mr-2 text-sm`}>
+                                  {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
+                                </div>
+                              )}
+                              <span className={`text-base font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
 
+          {/* Main Panel */}
           <div className="md:col-span-3">
             {!selectedUser ? (
               <div className={`text-center ${theme === 'light' ? 'text-black/60' : 'text-white/60'} mt-12 text-xl`}>
                 Select a user to view their statistics and latest feedback.
               </div>
             ) : (
-              <>
-                <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/60 via-indigo-900/60 to-blue-900/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 flex items-center shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+              <div>
+                <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 flex items-center ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
                   {selectedUser.avatar ? (
                     <img
                       src={selectedUser.avatar}
                       alt="Avatar"
                       className="w-24 h-24 rounded-full object-cover mr-5"
-                      onError={(e) => (e.target.src = '')}
                     />
                   ) : (
-                    <div
-                      className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white w-24 h-24 rounded-full flex items-center justify-center mr-5 text-3xl`}
-                    >
+                    <div className={`w-24 h-24 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center mr-5 text-2xl`}>
                       {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
                   <div>
                     <h5 className={`mb-2 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{selectedUser.name || selectedUser.username}</h5>
-                    <p className={`text-lg ${theme === 'light' ? 'text-black/70' : 'text-white/70'}`}>@{selectedUser.username} • {selectedUser.email}</p>
+                    <p className={`text-lg font-medium ${theme === 'light' ? 'text-black/70' : 'text-white/70'}`}>@{selectedUser.username} • {selectedUser.email}</p>
+                    {selectedUser.teamNames?.length > 0 && (
+                      <p className={`text-base font-medium ${theme === 'light' ? 'text-black/70' : 'text-white/70'} mt-1`}>Teams: {selectedUser.teamNames.join(', ')}</p>
+                    )}
                   </div>
                 </div>
 
@@ -432,155 +549,160 @@ export default function AdminPage() {
                     <div className={`animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 ${theme === 'light' ? 'border-blue-600' : 'border-purple-600'}`}></div>
                   </div>
                 ) : (
-                  <>
+                  <div>
                     <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Latest Feedback</h5>
                     {latestFeedback ? (
-                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-xl transition-all duration-300 hover:shadow-2xl overflow-auto`}>
+                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
                         <div className="flex items-center justify-between">
-                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} mb-3 truncate`}>
+                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'} mb-3 truncate`}>
                             PR #{latestFeedback.prId} • {latestFeedback.repoFullName}
                           </h5>
                           <div className="flex items-center gap-3">
                             <button
-                              className="px-4 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 transition text-base"
-                              onClick={() => deleteFeedback(latestFeedback.id).then(() => handleUserSelect(selectedUser))}
+                              className={`px-4 py-2 rounded-full ${theme === 'light' ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-700 text-white hover:bg-red-600'} text-base font-medium`}
+                              onClick={() => deleteMemberFeedback(latestFeedback.teamId || null, selectedUser.username, latestFeedback.id).then(() => handleUserSelect(selectedUser, latestFeedback.teamId || null))}
                             >
                               Delete
                             </button>
                             <button
                               onClick={toggleCollapse}
-                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
-                              aria-label={`Toggle feedback for PR ${latestFeedback.prId}`}
-                              aria-expanded={!collapsedFeedback}
+                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:bg-blue-100' : 'text-purple-400 hover:bg-purple-600/30'}`}
                             >
                               {collapsedFeedback ? <FaChevronDown size={20} /> : <FaChevronUp size={20} />}
                             </button>
                           </div>
                         </div>
                         <div
+                          className="transition-all duration-300 overflow-hidden"
                           ref={feedbackRef}
-                          className={`transition-opacity duration-300 ${collapsedFeedback ? 'opacity-0 h-0 overflow-hidden' : 'opacity-100'}`}
                         >
                           <ReactMarkdown
                             remarkPlugins={[remarkGfm]}
-                            components={{ p: ({ node, ...props }) => <p  {...props} className={`text-lg ${theme === 'light' ? 'text-black/90' : 'text-white/90'} mb-2 ${props.className || ''}`} /> }} 
+                            components={{
+                              p: ({ className, ...props }) => (
+                                <p className={`text-lg ${theme === 'light' ? 'text-black/90' : 'text-white/90'} mb-2 ${className || ''}`} {...props} />
+                              ),
+                            }}
                           >
                             {latestFeedback.comment}
                           </ReactMarkdown>
                         </div>
                       </div>
                     ) : (
-                      <div className={`bg-${theme === 'light' ? 'white/80' : 'black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 text-lg ${theme === 'light' ? 'text-black/60' : 'text-white/60'} shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white text-black/60' : 'bg-gray-900 text-white/60'} text-lg`}>
                         No feedback available for this user.
                       </div>
                     )}
 
                     <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>User Statistics</h5>
                     {stats && (
-                      <div className={`bg-${theme === 'light' ? 'white/80' : 'bg-gradient-to-br from-purple-900/70 via-indigo-900/70 to-blue-900/70'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-2xl transition-all duration-300 hover:shadow-3xl`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-6">
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-200' : 'bg-purple-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
-                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-purple-300'}`}>Total Feedbacks</p>
-                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-700' : 'text-purple-200'}`}>{stats.totalFeedbacks}</p>
+                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
+                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Total Feedbacks</span>
+                            <span className={`text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stats.totalFeedbacks}</span>
                           </div>
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-cyan-100' : 'bg-pink-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
-                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Avg Comment Length</p>
-                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{stats.avgCommentLength.toFixed(2)} chars</p>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
+                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Avg Comment Length</span>
+                            <span className={`text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stats.avgCommentLength?.toFixed(2)} chars</span>
                           </div>
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white-100' : 'bg-pink-400/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
-                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Last Feedback At</p>
-                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</p>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
+                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Last Feedback At</span>
+                            <span className={`text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</span>
                           </div>
-                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 pt-8 transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
-                            <Doughnut
-                              data={distinctReposChart}
-                              options={distinctReposOptions}
-                            />
+                          <div className={`h-56 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl p-4 sm:col-span-2`}>
+                            <Doughnut data={distinctReposChart} options={distinctReposOptions} />
                           </div>
-                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 flex flex-col items-center justify-between transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
+                          <div className={`h-56 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl p-4 flex flex-col items-center justify-between`}>
                             <div className="w-full h-4/5">
-                              <Doughnut
-                                data={avgRateChart}
-                                options={avgRateOptions}
-                              />
+                              <Doughnut data={avgRateChart} options={avgRateOptions} />
                             </div>
-                            <p className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>{stats ? `${stats.avgRate}%` : ''}</p>
+                            <span className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>{stats.avgRate}%</span>
                           </div>
                         </div>
                       </div>
                     )}
-                  </>
+                  </div>
                 )}
-              </>
+              </div>
             )}
           </div>
         </div>
       </main>
 
-      {/* Floating AI Chat Button */}
+      {/* Chat Button */}
       <button
-        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white text-xl flex items-center justify-center shadow-xl z-50 transition-all duration-200 hover:scale-110`}
+        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-xl z-50 transition-all duration-200`}
         onClick={() => setChatOpen(!chatOpen)}
-        title="Chat with AI"
+        title="Chat with AI Assistant"
       >
         <FaRobot size={28} />
       </button>
 
-      {/* Chat window */}
+      {/* Chat Popup */}
       {chatOpen && (
-        <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
-          <div className={`bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white px-4 py-2 flex justify-between items-center`}>
-            <span>AI Assistant</span>
-            <button onClick={() => setChatOpen(false)}>✕</button>
+        <div className={`fixed bottom-24 right-6 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
+          <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
+            <span className="font-semibold">AI Assistant</span>
+            <button onClick={() => setChatOpen(false)} className="text-white">Close</button>
           </div>
-          <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'}`}>
-            {chatMessages.map((m, i) => (
-              <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-right' : 'bg-blue-700 text-right') : (theme === 'light' ? 'bg-white' : 'bg-gray-700')}`}>
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={{ p: ({ node, ...props }) => <p className={theme === 'light' ? 'text-black' : 'text-white'} {...props} /> }}>
-                  {m.text}
+          <div className={`flex-1 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'} p-4 space-y-2 overflow-y-auto`}>
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`rounded-lg px-4 py-2 ${msg.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-black' : 'bg-purple-700 text-white') : (theme === 'light' ? 'bg-gray-200 text-black' : 'bg-gray-700 text-white')} ${msg.sender === 'user' ? 'ml-auto' : ''}`}
+              >
+                <ReactMarkdown
+                  remarkPlugins={[remarkGfm]}
+                  components={{
+                    p: ({ className, ...props }) => (
+                      <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'} ${className || ''}`} {...props} />
+                    ),
+                  }}
+                >
+                  {msg.text}
                 </ReactMarkdown>
               </div>
             ))}
           </div>
-          <div className={`border-t p-2 flex gap-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+          <div className={`border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'} p-2 flex gap-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
             <input
               type="text"
-              className={`flex-1 border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded px-2 py-1 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-              placeholder="Type a message..."
+              placeholder="Type your message..."
+              className={`flex-1 px-2 py-1 rounded ${theme === 'light' ? 'bg-white text-black border-gray-300' : 'bg-gray-700 text-white border-gray-600'} border`}
               value={chatInput}
-              onChange={e => setChatInput(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && handleSend()}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             />
-            <button onClick={handleSend} className={`px-3 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded`}>Send</button>
+            <button
+              onClick={handleSend}
+              className={`px-3 py-1 rounded ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'}`}
+            >
+              Send
+            </button>
           </div>
         </div>
       )}
 
       {/* Footer */}
-      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} backdrop-blur-lg border-t border-${theme === 'light' ? 'black/10' : 'white/10'} py-8`}>
-        <div className={`text-center mt-6 ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-base`}>
+      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border-t ${theme === 'light' ? 'border-gray-200/10' : 'border-white/10'} py-4`}>
+        <div className={`text-center ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-base font-semibold`}>
           © {new Date().getFullYear()} Code Review Hub. All rights reserved.
         </div>
       </footer>
 
-      {/* Animations */}
       <style jsx global>{`
         @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
+          0%, 100% {
+            background-position: 0% 50%;
+          }
+          50% {
+            background-position: 100% 50%;
+          }
         }
         .animate-gradient-x {
-          background-size: 200% 200%;
           animation: gradient-x 15s ease infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-        .shadow-3xl {
-          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+          background-size: 200% 200%;
         }
       `}</style>
     </div>

@@ -69,7 +69,7 @@ public class TeamController {
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("@teamService.isTeamAdmin(#id, principal.username) or hasRole('ROLE_TEAM_ADMIN')")
+    @PreAuthorize("@teamService.isTeamAdmin(#id, oauthUser.getAttribute('username')) or hasRole('ROLE_TEAM_ADMIN')")
     public ResponseEntity<Void> deleteTeam(
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
@@ -80,7 +80,7 @@ public class TeamController {
     }
 
     @GetMapping("/{id}/members")
-    @PreAuthorize("@teamService.isTeamMember(#id, principal.username) or hasRole('ROLE_TEAM_ADMIN')")
+    @PreAuthorize("@teamService.isTeamMember(#id, oauthUser.getAttribute('username')) or hasRole('ROLE_TEAM_ADMIN')")
     public ResponseEntity<List<UserDto>> getMembers(
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser

@@ -628,7 +628,7 @@ export default function UserPage() {
           </div>
           {dropdownOpen && (
             <div className={`absolute right-0 mt-2 w-48 ${theme === 'light' ? 'bg-white/90' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg z-50`}>
-              {user?.roles?.includes('ROLE_ADMIN') && (
+              {user?.roles?.includes('ROLE_ADMIN' && 'ROLE_TEAM_ADMIN') && (
                 <button
                   onClick={() => { handleSwitchToAdmin(); setDropdownOpen(false); }}
                   className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'} rounded-t-lg`}

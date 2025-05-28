@@ -82,7 +82,6 @@ public class TeamService {
         return List.copyOf(team.getMembers());
     }
 
-    // Overload without auth check for admin endpoints
     @Transactional(readOnly = true)
     public List<User> getTeamMembers(Long teamId) {
         Team team = findById(teamId);
@@ -103,6 +102,14 @@ public class TeamService {
     }
 
     @Transactional(readOnly = true)
+    public boolean isTeamAdminForUser(String username, String adminUsername) {
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+        return user.getTeams().stream()
+                .anyMatch(team -> team.getCreatedBy().getUsername().equals(adminUsername));
+    }
+
+    @Transactional(readOnly = true)
     public Team findById(Long teamId) {
         return teamRepository.findById(teamId)
                 .orElseThrow(() -> new ResourceNotFoundException("Team not found: " + teamId));
@@ -112,7 +119,7 @@ public class TeamService {
     public List<Team> getTeamsForUser(String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        return new ArrayList<>(user.getCreatedTeams());
+        return new ArrayList<>(user.getTeams());
     }
 
     @Transactional(readOnly = true)

@@ -4,18 +4,29 @@ export async function getAdminUsers() {
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`getAdminUsers failed: ${res.status} — ${text}`);
+      throw new Error(`getAdminUsers failed: ${res.status} ${text}`);
     }
     return res.json();
 }
 
-export async function getAdminFeedbacks() {
-    const res = await fetch('/api/admin/feedbacks', {
+export async function getAdminTeams() {
+    const res = await fetch('/api/admin/teams', {
       credentials: 'include'
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`getAdminFeedbacks failed: ${res.status} — ${text}`);
+      throw new Error(`getAdminTeams failed: ${res.status} ${text}`);
+    }
+    return res.json();
+}
+
+export async function getTeamMembers(teamId) {
+    const res = await fetch(`/api/admin/teams/${teamId}/members`, {
+      credentials: 'include'
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`getTeamMembers failed: ${res.status} ${text}`);
     }
     return res.json();
 }
@@ -28,31 +39,35 @@ export async function getAdminFeedbacksByUser(username) {
     );
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`getAdminFeedbacksByUser failed: ${res.status} — ${text}`);
+      throw new Error(`getAdminFeedbacksByUser failed: ${res.status} ${text}`);
     }
     return res.json();
 }
 
-export async function getUserStats(username) {
-    const res = await fetch(
-      `/api/admin/users/${encodeURIComponent(username)}/stats`, {
-        credentials: 'include'
-      }
-    );
+export async function getUserStats(teamId, username) {
+    const url = teamId
+      ? `/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/stats`
+      : `/api/admin/users/${encodeURIComponent(username)}/stats`;
+    const res = await fetch(url, {
+      credentials: 'include'
+    });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`getUserStats failed: ${res.status} — ${text}`);
+      throw new Error(`getUserStats failed: ${res.status} ${text}`);
     }
     return res.json();
 }
 
-export async function deleteFeedback(id) {
-    const res = await fetch(`/api/admin/feedbacks/${id}`, {
+export async function deleteMemberFeedback(teamId, username, feedbackId) {
+    const url = teamId
+      ? `/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/feedbacks/${feedbackId}`
+      : `/api/admin/feedbacks/${feedbackId}`;
+    const res = await fetch(url, {
       method: 'DELETE',
       credentials: 'include'
     });
     if (!res.ok) {
       const text = await res.text();
-      throw new Error(`deleteFeedback failed: ${res.status} — ${text}`);
+      throw new Error(`deleteMemberFeedback failed: ${res.status} ${text}`);
     }
 }
