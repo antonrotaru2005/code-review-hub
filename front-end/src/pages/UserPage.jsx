@@ -2,66 +2,14 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken } from '../api/user';
+import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken, getUserRepos, getUserReviewAspects, updateUserReviewAspects, getUserTeams, createTeam, joinTeam, leaveTeam, deleteTeam, getTeamMembers } from '../api/user';
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
-import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp } from 'react-icons/fa';
-import { DropdownButton, Dropdown, Spinner, Alert } from 'react-bootstrap';
+import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp, FaUsers, FaPlus, FaSignInAlt, FaSignOutAlt, FaTrash } from 'react-icons/fa';
+import { DropdownButton, Dropdown, Spinner, Alert, Modal, Button } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-
-export async function getUserRepos(username) {
-  try {
-    const response = await fetch(`/api/user/repos/${username}`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Failed to fetch user repositories:', error);
-    throw error;
-  }
-}
-
-export async function getUserReviewAspects(username) {
-  try {
-    const response = await fetch(`/api/user/${username}/aspects`, {
-      method: 'GET',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return await response.json();
-  } catch (error) {
-    console.error('Failed to fetch user review aspects:', error);
-    throw error;
-  }
-}
-
-export async function updateUserReviewAspects(username, aspects) {
-  try {
-    const response = await fetch(`/api/user/${username}/aspects`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(aspects)
-    });
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-    return true;
-  } catch (error) {
-    console.error('Failed to update user review aspects:', error);
-    throw error;
-  }
-}
 
 export default function UserPage() {
   const [user, setUser] = useState(null);
@@ -72,6 +20,8 @@ export default function UserPage() {
   const [searchId, setSearchId] = useState('');
   const [showRepoWarning, setShowRepoWarning] = useState(false);
   const [aspectWarningPopup, setAspectWarningPopup] = useState({ visible: false, message: null });
+  const [teamErrorPopup, setTeamErrorPopup] = useState({ visible: false, message: null });
+  const [teamSuccessPopup, setTeamSuccessPopup] = useState({ visible: false, message: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [chatOpen, setChatOpen] = useState(false);
@@ -96,8 +46,15 @@ export default function UserPage() {
   const [selectedAspects, setSelectedAspects] = useState([]);
   const [aspectsDropdownOpen, setAspectsDropdownOpen] = useState(false);
   const [isCopied, setIsCopied] = useState(false);
+  const [teams, setTeams] = useState([]);
+  const [newTeamName, setNewTeamName] = useState('');
+  const [joinTeamId, setJoinTeamId] = useState('');
+  const [showTeamMembersModal, setShowTeamMembersModal] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState(null);
+  const [teamMembers, setTeamMembers] = useState([]);
   const feedbackRefs = useRef({});
   const aspectsDropdownRef = useRef(null);
+  const teamDropdownRef = useRef(null);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -166,28 +123,22 @@ export default function UserPage() {
   const handleAspectChange = async (aspect) => {
     let updatedAspects;
     if (selectedAspects.includes(aspect)) {
-      // Încercăm să debifăm un aspect
       updatedAspects = selectedAspects.filter(a => a !== aspect);
       if (updatedAspects.length === 0) {
-        // Afișăm pop-up-ul de avertizare
         setAspectWarningPopup({ visible: true, message: 'You must keep at least one aspect.' });
-        setTimeout(() => setAspectWarningPopup({ visible: false, message: null }), 3000); // Ascunde după 3 secunde
+        setTimeout(() => setAspectWarningPopup({ visible: false, message: null }), 3000);
         return;
       }
     } else {
-      // Bifăm un aspect
       updatedAspects = [...selectedAspects, aspect];
     }
-    // Sortăm aspectele conform ordinii din allReviewAspects
     updatedAspects = updatedAspects.sort((a, b) => 
       allReviewAspects.indexOf(a) - allReviewAspects.indexOf(b)
     );
-    console.log('Updated aspects:', updatedAspects);
     setSelectedAspects(updatedAspects);
     try {
       await updateUserReviewAspects(user.username, updatedAspects);
     } catch (error) {
-      console.error('Failed to update review aspects:', error);
       setError('Eroare la actualizarea aspectelor. Încercați din nou.');
       setTimeout(() => setError(null), 3000);
     }
@@ -198,20 +149,19 @@ export default function UserPage() {
     try {
       await navigator.clipboard.writeText(token);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2000); // Reset after 2 seconds
+      setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
-      console.error('Failed to copy token:', err);
       setError('Failed to copy token. Please try again.');
     }
   };
 
   // Handle search by PR ID
   const handleSearchId = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, ''); // Allow only numbers
+    const value = e.target.value.replace(/[^0-9]/g, '');
     setSearchId(value);
 
     if (!value) {
-      setFeedbacks(allFeedbacks); // Reset to full list if search is empty
+      setFeedbacks(allFeedbacks);
       return;
     }
 
@@ -221,7 +171,6 @@ export default function UserPage() {
       return;
     }
 
-    // Filter from allFeedbacks
     const filteredFeedbacks = allFeedbacks.filter(fb =>
       fb.prId === searchNum &&
       (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
@@ -229,22 +178,104 @@ export default function UserPage() {
     setFeedbacks(filteredFeedbacks);
   };
 
-  // Handle Enter key press for search
-  const handleSearchSubmit = () => {
-    if (!searchId) return;
-    const searchNum = parseInt(searchId, 10);
-    if (isNaN(searchNum)) return;
-
-    // Filter feedbacks by PR ID, optionally restricting to selectedRepo if not 'all'
-    const filteredFeedbacks = feedbacks.filteredFeedbacks(fb => 
-      fb.prId === searchNum && 
-      (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
-    );
-
-    setFeedbacks(filteredFeedbacks);
+  // Handle team creation
+  const handleCreateTeam = async () => {
+    if (!newTeamName.trim()) {
+      setTeamErrorPopup({ visible: true, message: 'Team name cannot be empty.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+      return;
+    }
+    try {
+      const newTeam = await createTeam(newTeamName.trim());
+      setTeams(prev => [...prev, newTeam]);
+      setNewTeamName('');
+      setUser(prev => ({ ...prev, teamNames: [...prev.teamNames, newTeam.name] }));
+    } catch (error) {
+      setTeamErrorPopup({ visible: true, message: error.message || 'Failed to create team.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+    }
   };
 
-  // Load user, feedbacks, repositories, review aspects, and webhook status
+  // Handle joining a team
+  const handleJoinTeam = async () => {
+    if (!joinTeamId.trim() || isNaN(parseInt(joinTeamId, 10))) {
+      setTeamErrorPopup({ visible: true, message: 'Please enter a valid team ID.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+      return;
+    }
+
+    try {
+      await joinTeam(parseInt(joinTeamId, 10));
+      const updatedTeams = await getUserTeams();
+      setTeams(updatedTeams);
+      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      setJoinTeamId('');
+      setTeamSuccessPopup({ visible: true, message: 'Successfully joined the team!' });
+      setTimeout(() => setTeamSuccessPopup({ visible: false, message: null }), 3000);
+    } catch (error) {
+      let errorMessage = 'Failed to join team. Please try again.';
+      if (error.message.includes('404')) {
+        errorMessage = 'Team not found. Check the team ID.';
+      } else if (error.message.includes('409')) {
+        errorMessage = 'You are already a member of this team.';
+      } else if (error.message.includes('403')) {
+        errorMessage = 'You do not have permission to join this team.';
+      } else if (error.message.includes('400')) {
+        errorMessage = 'Invalid team ID provided.';
+      }
+      setTeamErrorPopup({ visible: true, message: errorMessage });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+    }
+  };
+
+  // Handle leaving a team
+  const handleLeaveTeam = async (teamId) => {
+    try {
+      await leaveTeam(teamId);
+      const updatedTeams = await getUserTeams();
+      setTeams(updatedTeams);
+      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      if (selectedTeam?.id === teamId) {
+        setSelectedTeam(null);
+        setShowTeamMembersModal(false);
+      }
+    } catch (error) {
+      setTeamErrorPopup({ visible: true, message: error.message || 'Failed to leave team.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+    }
+  };
+
+  // Handle deleting a team
+  const handleDeleteTeam = async (teamId) => {
+    try {
+      await deleteTeam(teamId);
+      const updatedTeams = await getUserTeams();
+      setTeams(updatedTeams);
+      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      if (selectedTeam?.id === teamId) {
+        setSelectedTeam(null);
+        setShowTeamMembersModal(false);
+      }
+    } catch (error) {
+      setTeamErrorPopup({ visible: true, message: error.message || 'Failed to delete team.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+    }
+  };
+
+  // Handle viewing team members
+  const handleViewTeamMembers = async (team) => {
+    try {
+      const members = await getTeamMembers(team.id);
+      setTeamMembers(members);
+      setSelectedTeam(team);
+      setShowTeamMembersModal(true);
+    } catch (error) {
+      setTeamErrorPopup({ visible: true, message: error.message || 'Failed to fetch team members.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+    }
+  };
+
+  // Load user, feedbacks, repositories, review aspects, webhook status, and teams
   useEffect(() => {
     if (didFetchRef.current) return;
     didFetchRef.current = true;
@@ -255,19 +286,13 @@ export default function UserPage() {
         setUser(u);
         try {
           const fbs = await getUserFeedbacks(u.username);
-          setAllFeedbacks(fbs); // Store full list
-          setFeedbacks(fbs); // Set initial filtered list
-          // Initialize all feedbacks as collapsed by default
+          setAllFeedbacks(fbs);
+          setFeedbacks(fbs);
           setCollapsedFeedbacks(
             fbs.reduce((acc, fb) => ({ ...acc, [fb.id]: true }), {})
           );
         } catch (fbErr) {
-          console.error('Failed to load feedbacks:', {
-            message: fbErr.message,
-            status: fbErr.message.match(/\d{3}/)?.[0],
-            stack: fbErr.stack,
-            username: u.username
-          });
+          console.error('Failed to load feedbacks:', fbErr);
           setAllFeedbacks([]);
           setFeedbacks([]);
           setCollapsedFeedbacks({});
@@ -276,25 +301,15 @@ export default function UserPage() {
           const userRepos = await getUserRepos(u.username);
           setRepos(['all', ...userRepos]);
         } catch (repoErr) {
-          console.error('Failed to load repositories:', {
-            message: repoErr.message,
-            status: repoErr.message.match(/\d{3}/)?.[0],
-            stack: repoErr.stack
-          });
+          console.error('Failed to load repositories:', repoErr);
           setRepos(['all']);
         }
         try {
           const aspects = await getUserReviewAspects(u.username);
-          console.log('Review aspects received:', aspects);
           setReviewAspects(aspects);
           setSelectedAspects(aspects);
-          console.log('Selected aspects set:', aspects);
         } catch (aspectErr) {
-          console.error('Failed to load review aspects:', {
-            message: aspectErr.message,
-            status: aspectErr.message.match(/\d{3}/)?.[0],
-            stack: aspectErr.stack
-          });
+          console.error('Failed to load review aspects:', aspectErr);
           setReviewAspects(allReviewAspects);
           setSelectedAspects([]);
         }
@@ -304,10 +319,8 @@ export default function UserPage() {
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' }
           });
-          console.log('Response GET /api/user/webhook-token:', { status: response.status });
           if (response.ok) {
             const t = await response.json();
-            console.log('Token received:', t);
             setToken(t.token);
             setWebhookEnabled(true);
           } else {
@@ -315,20 +328,19 @@ export default function UserPage() {
             setToken(null);
           }
         } catch (tokenErr) {
-          console.error('Failed to check webhook status:', {
-            message: tokenErr.message,
-            status: tokenErr.message.match(/\d{3}/)?.[0],
-            stack: tokenErr.stack
-          });
+          console.error('Failed to check webhook status:', tokenErr);
           setWebhookEnabled(false);
           setToken(null);
         }
+        try {
+          const userTeams = await getUserTeams();
+          setTeams(userTeams);
+        } catch (teamErr) {
+          console.error('Failed to load teams:', teamErr);
+          setTeams([]);
+        }
       } catch (e) {
-        console.error('Error loading user data:', {
-          message: e.message,
-          status: e.message.match(/\d{3}/)?.[0],
-          stack: e.stack
-        });
+        console.error('Error loading user data:', e);
         if (e.message.includes('401') || e.message.includes('403') || e.message.includes('Failed to fetch')) {
           setError('You are not authenticated. Please log in or sign up.');
         } else if (e.message.includes('404')) {
@@ -373,6 +385,9 @@ export default function UserPage() {
       if (aspectsDropdownRef.current && !aspectsDropdownRef.current.contains(event.target)) {
         setAspectsDropdownOpen(false);
       }
+      if (teamDropdownRef.current && !teamDropdownRef.current.contains(event.target)) {
+        // Add if you implement a team dropdown
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -406,12 +421,11 @@ export default function UserPage() {
           setPopup({ visible: true, stage: 'Done', prId: body.prId });
           try {
             const fbs = await getUserFeedbacks(username);
-            setAllFeedbacks(fbs); // Update full list
+            setAllFeedbacks(fbs);
             setFeedbacks(searchId ? fbs.filter(fb =>
               fb.prId === parseInt(searchId, 10) &&
               (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
-            ) : fbs); // Apply current search filter
-            // Update collapsedFeedbacks, collapsing new feedbacks by default
+            ) : fbs);
             setCollapsedFeedbacks(prev => ({
               ...prev,
               ...fbs.reduce((acc, fb) => ({
@@ -462,7 +476,6 @@ export default function UserPage() {
         setPopup({ visible: false, stage: null, prId: null });
       }
     } catch (e) {
-      console.error('Error toggling webhook:', e);
       setError(`Failed to ${checked ? 'enable' : 'disable'} webhook. Please try again.`);
       setWebhookEnabled(!checked);
     }
@@ -548,7 +561,7 @@ export default function UserPage() {
     );
   }
 
-  const grouped = groupByRepo(feedbacks, searchId);
+  const grouped = groupByRepo(feedbacks);
   const uniqueAis = [...new Set(aiModels.map(m => m.ai))];
 
   return (
@@ -606,6 +619,34 @@ export default function UserPage() {
           </div>
         </div>
       )}
+
+      {/* Pop-up Notification for Team Errors */}
+      {teamErrorPopup.visible && (
+        <div
+          className={`fixed top-5 left-50% w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'} border border-red-500 rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
+          style={{ left: '50%', transform: 'translateX(-50%)' }}
+          aria-live="polite"
+        >
+          <div className="flex items-center justify-center">
+            <span className="text-red-500">{teamErrorPopup.message}</span>
+          </div>
+        </div>
+      )}
+
+      {teamSuccessPopup.visible && (
+        <div
+          className={`fixed top-5 left-1/2 w-64 bg-${theme === 'light' ? 'white/90' : 'black/90'}
+                      border border-green-500 rounded-lg shadow-xl p-4 z-50 animate-fade-in`}
+          style={{ transform: 'translateX(-50%)' }}
+          aria-live="polite"
+        >
+          <div className="flex items-center justify-center">
+            <FaCheckCircle className="text-green-600" />
+            <span className="text-green-500">{teamSuccessPopup.message}</span>
+          </div>
+        </div>  
+      )}
+
 
       {/* Navbar */}
       <nav className={`relative z-50 px-6 py-4 flex justify-between items-center`}>
@@ -699,6 +740,90 @@ export default function UserPage() {
                 Hello, {user.name}!
               </h3>
               <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm`}>{user.email}</p>
+              {user.teamNames?.length > 0 && (
+                <p className={`text-${theme === 'light' ? 'black/70' : 'white/70'} text-sm mt-2`}>
+                  Teams: {user.teamNames.join(', ')}
+                </p>
+              )}
+            </div>
+
+            <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 flex flex-col`}>
+              <h4 className={`text-lg font-semibold mb-4 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
+                Team Management
+              </h4>
+              <div className="mb-4">
+                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Your Teams</h5>
+                {teams.length === 0 ? (
+                  <p className={`text-sm text-${theme === 'light' ? 'black/70' : 'white/70'}`}>No teams joined.</p>
+                ) : (
+                  <div className="space-y-2">
+                    {teams.map(team => (
+                      <div key={team.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <FaUsers className={`text-${theme === 'light' ? 'blue-600' : 'purple-600'}`} />
+                          <span className={`text-sm cursor-pointer ${theme === 'light' ? 'text-black hover:text-blue-600' : 'text-white hover:text-purple-600'}`} onClick={() => handleViewTeamMembers(team)}>
+                            {team.name}
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleLeaveTeam(team.id)}
+                            className={`text-sm ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                            title="Leave Team"
+                          >
+                            <FaSignOutAlt />
+                          </button>
+                          {team.createdBy?.username === user.username && (
+                            <button
+                              onClick={() => handleDeleteTeam(team.id)}
+                              className={`text-sm ${theme === 'light' ? 'text-red-600 hover:text-red-500' : 'text-red-400 hover:text-red-300'}`}
+                              title="Delete Team"
+                            >
+                              <FaTrash />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+              <div className="mb-4">
+                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Create Team</h5>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Team name"
+                    value={newTeamName}
+                    onChange={(e) => setNewTeamName(e.target.value)}
+                    className={`flex-1 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                  />
+                  <button
+                    onClick={handleCreateTeam}
+                    className={`px-3 py-1 text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded`}
+                  >
+                    <FaPlus />
+                  </button>
+                </div>
+              </div>
+              <div>
+                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Join Team</h5>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Team ID"
+                    value={joinTeamId}
+                    onChange={(e) => setJoinTeamId(e.target.value.replace(/[^0-9]/g, ''))}
+                    className={`flex-1 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                  />
+                  <button
+                    onClick={handleJoinTeam}
+                    className={`px-3 py-1 text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded`}
+                  >
+                    <FaSignInAlt />
+                  </button>
+                </div>
+              </div>
             </div>
 
             <div className={`relative ${aspectsDropdownOpen ? 'z-[1000]' : 'z-80'} rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-3 text-center`}>
@@ -870,8 +995,8 @@ export default function UserPage() {
               </div>
               {Object.entries(grouped).length === 0 ? (
                 <div className={`text-${theme === 'light' ? 'black/60' : 'white/60'}`}>
-                No feedback found.
-              </div>
+                  No feedback found.
+                </div>
               ) : (
                 Object.entries(grouped)
                   .filter(([repo]) => selectedRepo === 'all' || repo === selectedRepo)
@@ -920,6 +1045,80 @@ export default function UserPage() {
           </div>
         </div>
       </main>
+
+      {/* Team Members Modal */}
+      <Modal
+        show={showTeamMembersModal}
+        onHide={() => setShowTeamMembersModal(false)}
+        centered
+        dialogClassName="team-members-modal"
+        aria-labelledby="team-members-modal-title"
+      >
+        <Modal.Header className={`team-members-modal-header ${theme === 'light' ? 'bg-gray-50 text-gray-900' : 'bg-gradient-to-r from-[#1e2533] to-[#2a3344] text-gray-100'} border-b border-${theme === 'light' ? 'gray-200' : 'gray-700'}`}>
+          <Modal.Title id="team-members-modal-title" className="text-xl font-semibold">
+            {selectedTeam?.name} Members
+          </Modal.Title>
+          <button
+            type="button"
+            className={`team-members-modal-close ${theme === 'light' ? 'text-gray-500 hover:text-gray-700' : 'text-gray-400 hover:text-gray-200'}`}
+            onClick={() => setShowTeamMembersModal(false)}
+            aria-label="Close"
+          >
+            ✕
+          </button>
+        </Modal.Header>
+        <Modal.Body className={`team-members-modal-body ${theme === 'light' ? 'bg-white' : 'bg-[#1e2533]'} py-6 px-8 max-h-[60vh] overflow-y-auto`}>
+          {teamMembers.length === 0 ? (
+            <p className={`text-center text-base ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`} aria-live="polite">
+              No members found.
+            </p>
+          ) : (
+            <div className="space-y-4" role="list" aria-label="Team members">
+              {teamMembers.map(member => (
+                <div
+                  key={member.username}
+                  className={`team-member-card flex items-center gap-4 p-4 rounded-xl border ${theme === 'light' ? 'border-gray-200 bg-gray-50 hover:bg-gray-100' : 'border-gray-700 bg-[#2a3344] hover:bg-[#353f55]'} transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5`}
+                  role="listitem"
+                >
+                  {member.avatar ? (
+                    <img
+                      src={member.avatar}
+                      alt={`${member.name}'s avatar`}
+                      className="w-12 h-12 rounded-full object-cover ring-2 ring-offset-2 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}"
+                    />
+                  ) : (
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'} ring-2 ring-offset-2 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}`}>
+                      {member.name[0]}
+                    </div>
+                  )}
+                  <div className="flex-1">
+                    <p className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`} aria-label={`Member name: ${member.name}`}>
+                      {member.name}
+                    </p>
+                    <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`} aria-label={`Member email: ${member.email}`}>
+                      {member.email}
+                    </p>
+                    {selectedTeam?.createdBy?.username === member.username && (
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded-full ${theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-purple-900 text-purple-300'}`}>
+                        Team Admin
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Modal.Body>
+        <Modal.Footer className={`team-members-modal-footer ${theme === 'light' ? 'bg-gray-50' : 'bg-[#1e2533]'} border-t border-${theme === 'light' ? 'gray-200' : 'gray-700'} px-8 py-4`}>
+          <Button
+            onClick={() => setShowTeamMembersModal(false)}
+            className={`team-members-modal-button px-6 py-2 text-sm font-medium rounded-lg ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} transition-colors duration-200`}
+            aria-label="Close modal"
+          >
+            Close
+          </Button>
+        </Modal.Footer>
+      </Modal>
 
       <button
         className={`fixed bottom-5 right-5 w-14 h-14 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} flex items-center justify-center shadow-lg z-50`}
@@ -1008,7 +1207,48 @@ export default function UserPage() {
         }
         .animate-fade-in {
           animation: fade-in 0.3s ease-out;
-          will-change: opacity, margin-top; /* Optimize animation performance */
+          will-change: opacity, margin-top;
+        }
+        @keyframes modal-slide-in {
+          0% { opacity: 0; transform: translateY(20px); }
+          100% { opacity: 1; transform: translateY(0); }
+        }
+        .team-members-modal .modal-dialog {
+          max-width: 500px;
+          animation: modal-slide-in 0.3s ease-out;
+        }
+        .team-members-modal-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 1.5rem 2rem;
+          border-radius: 1rem 1rem 0 0;
+        }
+        .team-members-modal-close {
+          background: none;
+          border: none;
+          font-size: 1.25rem;
+          line-height: 1;
+          cursor: pointer;
+          transition: color 0.2s ease;
+        }
+        .team-members-modal-body {
+          padding: 2rem;
+        }
+        .team-member-card {
+          cursor: default;
+        }
+        .team-members-modal-footer {
+          padding: 1.5rem 2rem;
+          border-radius: 0 0 1rem 1rem;
+          display: flex;
+          justify-content: flex-end;
+        }
+        .team-members-modal-button {
+          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .team-members-modal-button:hover {
+          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
         .ai-dropdown .btn {
           background-color: transparent;
@@ -1021,7 +1261,7 @@ export default function UserPage() {
           width: 100%;
           text-align: left;
           position: relative;
-          padding-right: 2.5rem; /* Space for the caret */
+          padding-right: 2.5rem;
         }
         .ai-dropdown .btn:hover {
           background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
@@ -1032,14 +1272,14 @@ export default function UserPage() {
           font-size: 0.875rem;
           width: auto;
           min-width: 100%;
-          max-width: 500px; /* Prevent overly wide dropdowns */
-          z-index: 60; /* Above cards but below aspects dropdown */
+          max-width: 500px;
+          z-index: 60;
         }
         .ai-dropdown .dropdown-item {
           color: ${theme === 'light' ? 'black' : 'white'};
           padding: 0.5rem 1rem;
-          white-space: normal; /* Allow text wrapping */
-          word-break: break-word; /* Break long words */
+          white-space: normal;
+          word-break: break-word;
         }
         .ai-dropdown .dropdown-item:hover {
           background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
@@ -1069,7 +1309,7 @@ export default function UserPage() {
           max-width: 280px;
           white-space: normal;
           word-break: break-word;
-          z-index: 70; /* Ensure repo dropdown is above AI model dropdown */
+          z-index: 70;
         }
         .repo-dropdown-wrapper {
           display: inline-block;
@@ -1077,7 +1317,7 @@ export default function UserPage() {
           max-width: 200px;
         }
         .aspects-dropdown-list {
-          z-index: 1000; /* Highest z-index for aspects dropdown list */
+          z-index: 1000;
         }
       `}</style>
     </div>

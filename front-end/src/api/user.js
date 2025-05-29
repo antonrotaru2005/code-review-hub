@@ -76,3 +76,141 @@ export async function getUserRepos(username) {
     throw error;
   }
 }
+
+export async function getUserReviewAspects(username) {
+  try {
+    const response = await fetch(`/api/user/${username}/aspects`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user review aspects:', error);
+    throw error;
+  }
+}
+
+export async function updateUserReviewAspects(username, aspects) {
+  try {
+    const response = await fetch(`/api/user/${username}/aspects`, {
+      method: 'PUT',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(aspects)
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to update user review aspects:', error);
+    throw error;
+  }
+}
+
+export async function getUserTeams() {
+  try {
+    const response = await fetch('/api/teams', {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch user teams:', error);
+    throw error;
+  }
+}
+
+export async function createTeam(name) {
+  try {
+    const response = await fetch('/api/teams', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name })
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to create team:', error);
+    throw error;
+  }
+}
+
+export async function joinTeam(teamId) {
+  try {
+    const response = await fetch(`/api/teams/${teamId}/join`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to join team:', error);
+    throw error;
+  }
+}
+
+export async function leaveTeam(teamId) {
+  try {
+    const response = await fetch(`/api/teams/${teamId}/leave`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to leave team:', error);
+    throw error;
+  }
+}
+
+export async function deleteTeam(teamId) {
+  try {
+    const response = await fetch(`/api/teams/${teamId}`, {
+      method: 'DELETE',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return true;
+  } catch (error) {
+    console.error('Failed to delete team:', error);
+    throw error;
+  }
+}
+
+export async function getTeamMembers(teamId) {
+  try {
+    const response = await fetch(`/api/teams/${teamId}/members`, {
+      method: 'GET',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Failed to fetch team members:', error);
+    throw error;
+  }
+}

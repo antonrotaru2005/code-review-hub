@@ -1,6 +1,7 @@
 package com.review.reviewservice.service;
 
 import com.review.reviewservice.exceptions.AccessDeniedException;
+import com.review.reviewservice.exceptions.AlreadyMemberException;
 import com.review.reviewservice.exceptions.ResourceNotFoundException;
 import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
@@ -51,6 +52,11 @@ public class TeamService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
         Team team = findById(teamId);
+
+        if (team.getMembers().contains(user)) {
+            throw new AlreadyMemberException("You are already a member of team " + teamId);
+        }
+
         team.getMembers().add(user);
         teamRepository.save(team);
     }
@@ -60,10 +66,15 @@ public class TeamService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
         Team team = findById(teamId);
+
+        if (!team.getMembers().contains(user)) {
+            throw new ResourceNotFoundException(
+                    "User " + username + " is not a member of team " + teamId);
+        }
+
         team.getMembers().remove(user);
         teamRepository.save(team);
     }
-
     @Transactional
     public void deleteTeam(Long teamId, String username) {
         Team team = findById(teamId);

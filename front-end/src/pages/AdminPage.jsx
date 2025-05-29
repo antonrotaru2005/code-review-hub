@@ -474,7 +474,9 @@ export default function AdminPage() {
                         className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40'} transition-all duration-200`}
                         onClick={() => toggleTeamExpand(team.id)}
                       >
-                        <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{team.name}</span>
+                        <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                            ID: {team.id} | {team.name}
+                          </span>
                         {expandedTeams[team.id] ? (
                           <FaChevronUp className={theme === 'light' ? 'text-black' : 'text-white'} />
                         ) : (
