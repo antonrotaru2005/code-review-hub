@@ -21,7 +21,6 @@ public class Team {
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;
 
-    // membrii echipei
     @ManyToMany
     @JoinTable(
             name = "user_team",
@@ -29,4 +28,7 @@ public class Team {
             inverseJoinColumns = @JoinColumn(name = "user_id")
     )
     private Set<User> members = new HashSet<>();
+
+    @Column(nullable = false)
+    private String password;
 }

@@ -1,6 +1,7 @@
 package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.CreateTeamDto;
+import com.review.reviewservice.dto.JoinTeamDto;
 import com.review.reviewservice.dto.TeamDto;
 import com.review.reviewservice.dto.UserDto;
 import com.review.reviewservice.model.entity.Role;
@@ -44,17 +45,18 @@ public class TeamController {
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
         String username = oauthUser.getAttribute("username");
-        var team = teamService.createTeam(dto.name(), username);
+        var team = teamService.createTeam(dto.name(), dto.password(), username);
         return ResponseEntity.ok(TeamDto.fromEntity(team));
     }
 
     @PostMapping("/{id}/join")
     public ResponseEntity<Void> joinTeam(
             @PathVariable Long id,
-            @AuthenticationPrincipal OAuth2User oauthUser
+            @AuthenticationPrincipal OAuth2User oauthUser,
+            @RequestBody JoinTeamDto dto
     ) {
         String username = oauthUser.getAttribute("username");
-        teamService.joinTeam(id, username);
+        teamService.joinTeam(id, username, dto.password());
         return ResponseEntity.ok().build();
     }
 

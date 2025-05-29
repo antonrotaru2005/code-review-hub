@@ -52,6 +52,8 @@ export default function UserPage() {
   const [showTeamMembersModal, setShowTeamMembersModal] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState(null);
   const [teamMembers, setTeamMembers] = useState([]);
+  const [newTeamPassword, setNewTeamPassword] = useState('');
+  const [joinTeamPassword, setJoinTeamPassword] = useState('');
   const feedbackRefs = useRef({});
   const aspectsDropdownRef = useRef(null);
   const teamDropdownRef = useRef(null);
@@ -185,13 +187,27 @@ export default function UserPage() {
       setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
       return;
     }
+    if (!newTeamPassword.trim()) {
+      setTeamErrorPopup({ visible: true, message: 'Team password cannot be empty.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+      return;
+    }
     try {
-      const newTeam = await createTeam(newTeamName.trim());
+      const newTeam = await createTeam(newTeamName.trim(), newTeamPassword.trim());
       setTeams(prev => [...prev, newTeam]);
       setNewTeamName('');
+      setNewTeamPassword('');
       setUser(prev => ({ ...prev, teamNames: [...prev.teamNames, newTeam.name] }));
+      setTeamSuccessPopup({ visible: true, message: 'Team created successfully!' });
+      setTimeout(() => setTeamSuccessPopup({ visible: false, message: null }), 3000);
     } catch (error) {
-      setTeamErrorPopup({ visible: true, message: error.message || 'Failed to create team.' });
+      let errorMessage = 'Failed to create team. Please try again.';
+      if (error.message.includes('400')) {
+        errorMessage = 'Invalid team name or password.';
+      } else if (error.message.includes('409')) {
+        errorMessage = 'Team name already exists.';
+      }
+      setTeamErrorPopup({ visible: true, message: errorMessage });
       setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
     }
   };
@@ -203,13 +219,18 @@ export default function UserPage() {
       setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
       return;
     }
-
+    if (!joinTeamPassword.trim()) {
+      setTeamErrorPopup({ visible: true, message: 'Please enter the team password.' });
+      setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
+      return;
+    }
     try {
-      await joinTeam(parseInt(joinTeamId, 10));
+      await joinTeam(parseInt(joinTeamId, 10), joinTeamPassword.trim());
       const updatedTeams = await getUserTeams();
       setTeams(updatedTeams);
       setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
       setJoinTeamId('');
+      setJoinTeamPassword('');
       setTeamSuccessPopup({ visible: true, message: 'Successfully joined the team!' });
       setTimeout(() => setTeamSuccessPopup({ visible: false, message: null }), 3000);
     } catch (error) {
@@ -219,9 +240,9 @@ export default function UserPage() {
       } else if (error.message.includes('409')) {
         errorMessage = 'You are already a member of this team.';
       } else if (error.message.includes('403')) {
-        errorMessage = 'You do not have permission to join this team.';
+        errorMessage = 'Incorrect password or no permission to join.';
       } else if (error.message.includes('400')) {
-        errorMessage = 'Invalid team ID provided.';
+        errorMessage = 'Invalid team ID or password.';
       }
       setTeamErrorPopup({ visible: true, message: errorMessage });
       setTimeout(() => setTeamErrorPopup({ visible: false, message: null }), 3000);
@@ -761,9 +782,19 @@ export default function UserPage() {
                       <div key={team.id} className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <FaUsers className={`text-${theme === 'light' ? 'blue-600' : 'purple-600'}`} />
-                          <span className={`text-sm cursor-pointer ${theme === 'light' ? 'text-black hover:text-blue-600' : 'text-white hover:text-purple-600'}`} onClick={() => handleViewTeamMembers(team)}>
-                            {team.name}
-                          </span>
+                          <div className="flex items-center gap-1">
+                            <span 
+                              className={`text-sm cursor-pointer ${theme === 'light' ? 'text-black hover:text-blue-600' : 'text-white hover:text-purple-600'}`} 
+                              onClick={() => handleViewTeamMembers(team)}
+                            >
+                              {team.name}
+                            </span>
+                            {team.createdByUsername === user.username && (
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${theme === 'light' ? 'bg-green-500 text-white' : 'bg-green-600 text-white'} ml-1`}>
+                                Admin
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <button
@@ -773,7 +804,7 @@ export default function UserPage() {
                           >
                             <FaSignOutAlt />
                           </button>
-                          {team.createdBy?.username === user.username && (
+                          {team.createdByUsername === user.username && (
                             <button
                               onClick={() => handleDeleteTeam(team.id)}
                               className={`text-sm ${theme === 'light' ? 'text-red-600 hover:text-red-500' : 'text-red-400 hover:text-red-300'}`}
@@ -790,37 +821,61 @@ export default function UserPage() {
               </div>
               <div className="mb-4">
                 <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Create Team</h5>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Team name"
-                    value={newTeamName}
-                    onChange={(e) => setNewTeamName(e.target.value)}
-                    className={`flex-1 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                  />
+                <div className="flex flex-row gap-2 team-input-group">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Team name"
+                      value={newTeamName}
+                      onChange={(e) => setNewTeamName(e.target.value)}
+                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                    />
+                    <input
+                      type="password"
+                      placeholder="Team password"
+                      value={newTeamPassword}
+                      onChange={(e) => setNewTeamPassword(e.target.value)}
+                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                    />
+                  </div>
                   <button
                     onClick={handleCreateTeam}
-                    className={`px-3 py-1 text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded`}
+                    className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
                   >
-                    <FaPlus />
+                    <div className="flex flex-col items-center">
+                      <FaPlus className="mb-1" />
+                      <span>Create</span>
+                    </div>
                   </button>
                 </div>
               </div>
               <div>
                 <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Join Team</h5>
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    placeholder="Team ID"
-                    value={joinTeamId}
-                    onChange={(e) => setJoinTeamId(e.target.value.replace(/[^0-9]/g, ''))}
-                    className={`flex-1 px-2 py-1 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                  />
+                <div className="flex flex-row gap-2 team-input-group">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <input
+                      type="text"
+                      placeholder="Team ID"
+                      value={joinTeamId}
+                      onChange={(e) => setJoinTeamId(e.target.value.replace(/[^0-9]/g, ''))}
+                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                    />
+                    <input
+                      type="password"
+                      placeholder="Team password"
+                      value={joinTeamPassword}
+                      onChange={(e) => setJoinTeamPassword(e.target.value)}
+                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                    />
+                  </div>
                   <button
                     onClick={handleJoinTeam}
-                    className={`px-3 py-1 text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded`}
+                    className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
                   >
-                    <FaSignInAlt />
+                    <div className="flex flex-col items-center">
+                      <FaSignInAlt className="mb-1" />
+                      <span>Join</span>
+                    </div>
                   </button>
                 </div>
               </div>
@@ -1318,6 +1373,33 @@ export default function UserPage() {
         }
         .aspects-dropdown-list {
           z-index: 1000;
+        }
+        .team-input-group {
+          align-items: flex-start;
+        }
+        .team-button {
+          width: 80px;
+          height: 72px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        @media (max-width: 640px) {
+          .team-input-group {
+            flex-direction: column;
+            align-items: stretch;
+          }
+          .team-button {
+            width: 100%;
+            height: 40px;
+            margin-top: 0.5rem;
+          }
+          .team-input-group > div {
+            width: 100%;
+          }
+          .team-input-group input {
+            width: 100%;
+          }
         }
       `}</style>
     </div>

@@ -1,3 +1,3 @@
 package com.review.reviewservice.dto;
 
-public record CreateTeamDto(String name) {}
+public record CreateTeamDto(String name, String password) {}

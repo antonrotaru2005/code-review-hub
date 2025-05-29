@@ -129,16 +129,17 @@ export async function getUserTeams() {
   }
 }
 
-export async function createTeam(name) {
+export async function createTeam(name, password) {
   try {
     const response = await fetch('/api/teams', {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name })
+      body: JSON.stringify({ name, password })
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`${response.status} - ${errorData.message || 'Failed to create team'}`);
     }
     return await response.json();
   } catch (error) {
@@ -147,15 +148,17 @@ export async function createTeam(name) {
   }
 }
 
-export async function joinTeam(teamId) {
+export async function joinTeam(teamId, password) {
   try {
     const response = await fetch(`/api/teams/${teamId}/join`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password })
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`${response.status} - ${errorData.message || 'Failed to join team'}`);
     }
     return true;
   } catch (error) {
@@ -172,7 +175,8 @@ export async function leaveTeam(teamId) {
       headers: { 'Content-Type': 'application/json' }
     });
     if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(`${response.status} - ${errorData.message || 'Failed to leave team'}`);
     }
     return true;
   } catch (error) {

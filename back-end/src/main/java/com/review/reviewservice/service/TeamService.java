@@ -3,6 +3,7 @@ package com.review.reviewservice.service;
 import com.review.reviewservice.exceptions.AccessDeniedException;
 import com.review.reviewservice.exceptions.AlreadyMemberException;
 import com.review.reviewservice.exceptions.ResourceNotFoundException;
+import com.review.reviewservice.exceptions.WrongTeamPasswordException;
 import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.entity.Role;
@@ -30,13 +31,14 @@ public class TeamService {
     }
 
     @Transactional
-    public Team createTeam(String name, String creatorUsername) {
+    public Team createTeam(String name, String password, String creatorUsername) {
         User creator = userRepository.findByUsername(creatorUsername)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + creatorUsername));
         Team team = new Team();
         team.setName(name);
         team.setCreatedBy(creator);
         team.getMembers().add(creator);
+        team.setPassword(password);
         teamRepository.save(team);
 
         Role teamAdminRole = roleRepository.findByName("ROLE_TEAM_ADMIN")
@@ -48,10 +50,14 @@ public class TeamService {
     }
 
     @Transactional
-    public void joinTeam(Long teamId, String username) {
+    public void joinTeam(Long teamId, String username, String providedPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
         Team team = findById(teamId);
+
+        if (!team.getPassword().equals(providedPassword)) {
+            throw new WrongTeamPasswordException();
+        }
 
         if (team.getMembers().contains(user)) {
             throw new AlreadyMemberException("You are already a member of team " + teamId);
@@ -72,9 +78,22 @@ public class TeamService {
                     "User " + username + " is not a member of team " + teamId);
         }
 
-        team.getMembers().remove(user);
+        if (team.getCreatedBy().getUsername().equals(username)) {
+            team.getMembers().remove(user);
+            if (team.getMembers().isEmpty()) {
+                teamRepository.delete(team);
+                return;
+            }
+            // Select the first remaining member as the new creator
+            User newCreator = team.getMembers().iterator().next();
+            team.setCreatedBy(newCreator);
+        } else {
+            team.getMembers().remove(user);
+        }
+
         teamRepository.save(team);
     }
+
     @Transactional
     public void deleteTeam(Long teamId, String username) {
         Team team = findById(teamId);
