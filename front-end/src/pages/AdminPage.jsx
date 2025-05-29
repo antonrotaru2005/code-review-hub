@@ -115,7 +115,6 @@ export default function AdminPage() {
         setUser(adminUser);
 
         if (adminUser.roles?.includes('ROLE_ADMIN')) {
-          // Super Admin: Load both users and teams
           const [userList, teamList] = await Promise.all([
             getAdminUsers(),
             getAdminTeams(),
@@ -123,7 +122,6 @@ export default function AdminPage() {
           setUsers(userList);
           setTeams(teamList);
         } else if (adminUser.roles?.includes('ROLE_TEAM_ADMIN')) {
-          // Team Admin: Load only teams
           setViewMode('teams');
           const teamList = await getAdminTeams();
           setTeams(teamList);
@@ -135,7 +133,6 @@ export default function AdminPage() {
           e.message.includes('401') ||
           e.message.includes('403')
         ) {
-          console.log(e.message)
           setError('You are not logged in. Please log in or sign up to access this page.');
         } else {
           setError(e.message);
@@ -313,7 +310,7 @@ export default function AdminPage() {
   if (error) {
     return (
       <div className={`min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} flex items-center justify-center`}>
-        <div className={`relative z-10 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-2xl p-6 text-center`}>
+        <div className={`relative z-10 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-6 text-center`}>
           <h3 className={`text-lg font-semibold mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>Authentication Required</h3>
           <p className={`mb-4 ${theme === 'light' ? 'text-black' : 'text-white'}`}>{error}</p>
           {error.includes('You are not logged in') ? (
@@ -367,21 +364,21 @@ export default function AdminPage() {
             <FaCaretDown className={theme === 'light' ? 'text-black' : 'text-white'} />
           </div>
           {dropdownOpen && (
-            <div className={`absolute right-0 mt-2 w-48 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-lg shadow-lg z-50`}>
+            <div className={`absolute right-0 mt-2 w-48 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-lg shadow-lg z-50`}>
               {(isSuperAdmin || user?.roles?.includes('ROLE_TEAM_ADMIN')) && (
                 <button
                   onClick={() => {
                     handleSwitchToUser();
                     setDropdownOpen(false);
                   }}
-                  className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'} rounded-t-lg`}
+                  className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'} rounded-t-lg`}
                 >
                   Switch to User
                 </button>
               )}
               <button
                 onClick={handleToggleTheme}
-                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'}`}
+                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'}`}
               >
                 Theme
               </button>
@@ -416,7 +413,7 @@ export default function AdminPage() {
                   handleLogout();
                   setDropdownOpen(false);
                 }}
-                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-100' : 'text-white hover:bg-purple-600'} rounded-b-lg`}
+                className={`w-full text-left px-4 py-2 ${theme === 'light' ? 'text-black hover:bg-blue-200' : 'text-white hover:bg-purple-600'} rounded-b-lg`}
               >
                 Logout
               </button>
@@ -430,7 +427,7 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar */}
           <div className="md:col-span-1 space-y-8">
-            <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+            <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
               {isSuperAdmin && (
                 <div className="mb-4 flex gap-4">
                   <button
@@ -453,7 +450,7 @@ export default function AdminPage() {
                   users.map((u) => (
                     <div
                       key={u.username}
-                      className={`p-3 rounded-full bg-blue-200 cursor-pointer flex items-center justify-between ${selectedUser?.username === u.username ? 'bg-blue-100/50' : 'hover:bg-blue-600/30'} hover:bg-blue-100/40 transition-all duration-300 hover:bg-blue-700/40`}
+                      className={`p-3 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
                       onClick={() => handleUserSelect(u)}
                     >
                       {u.avatar ? (
@@ -463,18 +460,18 @@ export default function AdminPage() {
                           className="w-10 h-10 rounded-full object-cover mr-3"
                         />
                       ) : (
-                        <div className={`w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center mr-3 text-lg`}>
+                        <div className={`w-10 h-10 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-3 text-lg`}>
                           {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                         </div>
                       )}
-                      <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                      <span className={`text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
                     </div>
                   ))
                 ) : (
                   teams.map((team) => (
                     <div key={team.id}>
                       <div
-                        className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100' : 'hover:bg-purple-600'}`}
+                        className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40'} transition-all duration-200`}
                         onClick={() => toggleTeamExpand(team.id)}
                       >
                         <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{team.name}</span>
@@ -489,7 +486,7 @@ export default function AdminPage() {
                           {teamMembers[team.id].map((u) => (
                             <div
                               key={u.username}
-                              className={`p-2 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100' : 'hover:bg-purple-600/30')}`}
+                              className={`p-2 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
                               onClick={() => handleUserSelect(u, team.id)}
                             >
                               {u.avatar ? (
@@ -499,11 +496,11 @@ export default function AdminPage() {
                                   className="w-8 h-8 rounded-full object-cover mr-2"
                                 />
                               ) : (
-                                <div className={`w-8 h-8 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center mr-2 text-sm`}>
+                                <div className={`w-8 h-8 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-2 text-sm`}>
                                   {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                                 </div>
                               )}
-                              <span className={`text-base font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                              <span className={`text-base ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
                             </div>
                           ))}
                         </div>
@@ -523,7 +520,7 @@ export default function AdminPage() {
               </div>
             ) : (
               <div>
-                <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 flex items-center ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+                <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 flex items-center shadow-xl transition-all duration-300 hover:shadow-2xl`}>
                   {selectedUser.avatar ? (
                     <img
                       src={selectedUser.avatar}
@@ -531,7 +528,7 @@ export default function AdminPage() {
                       className="w-24 h-24 rounded-full object-cover mr-5"
                     />
                   ) : (
-                    <div className={`w-24 h-24 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center mr-5 text-2xl`}>
+                    <div className={`w-24 h-24 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-5 text-2xl`}>
                       {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
@@ -552,21 +549,21 @@ export default function AdminPage() {
                   <div>
                     <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Latest Feedback</h5>
                     {latestFeedback ? (
-                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
                         <div className="flex items-center justify-between">
-                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'} mb-3 truncate`}>
+                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} mb-3 truncate`}>
                             PR #{latestFeedback.prId} • {latestFeedback.repoFullName}
                           </h5>
                           <div className="flex items-center gap-3">
                             <button
-                              className={`px-4 py-2 rounded-full ${theme === 'light' ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-red-700 text-white hover:bg-red-600'} text-base font-medium`}
+                              className={`px-4 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 transition text-base font-medium`}
                               onClick={() => deleteMemberFeedback(latestFeedback.teamId || null, selectedUser.username, latestFeedback.id).then(() => handleUserSelect(selectedUser, latestFeedback.teamId || null))}
                             >
                               Delete
                             </button>
                             <button
                               onClick={toggleCollapse}
-                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:bg-blue-100' : 'text-purple-400 hover:bg-purple-600/30'}`}
+                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
                             >
                               {collapsedFeedback ? <FaChevronDown size={20} /> : <FaChevronUp size={20} />}
                             </button>
@@ -589,35 +586,35 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white text-black/60' : 'bg-gray-900 text-white/60'} text-lg`}>
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'text-black/60' : 'text-white/60'} text-lg shadow-xl transition-all duration-300 hover:shadow-2xl`}>
                         No feedback available for this user.
                       </div>
                     )}
 
                     <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>User Statistics</h5>
                     {stats && (
-                      <div className={`border ${theme === 'light' ? 'border-black/10' : 'border-white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
-                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
-                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Total Feedbacks</span>
-                            <span className={`text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stats.totalFeedbacks}</span>
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-2xl transition-all duration-300 hover:shadow-3xl`}>
+                        <div className="grid grid-cols-1 sm:grid-cols-6 gap-6">
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-200' : 'bg-purple-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-purple-300'}`}>Total Feedbacks</p>
+                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-700' : 'text-purple-200'}`}>{stats.totalFeedbacks}</p>
                           </div>
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
-                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Avg Comment Length</span>
-                            <span className={`text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{stats.avgCommentLength?.toFixed(2)} chars</span>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-cyan-100' : 'bg-pink-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Avg Comment Length</p>
+                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{stats.avgCommentLength?.toFixed(2)} chars</p>
                           </div>
-                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-900/50'} rounded-2xl`}>
-                            <span className={`text-base font-medium ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>Last Feedback At</span>
-                            <span className={`text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</span>
+                          <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white-100' : 'bg-pink-400/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
+                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Last Feedback At</p>
+                            <p className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</p>
                           </div>
-                          <div className={`h-56 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl p-4 sm:col-span-2`}>
+                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 pt-8 transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
                             <Doughnut data={distinctReposChart} options={distinctReposOptions} />
                           </div>
-                          <div className={`h-56 border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl p-4 flex flex-col items-center justify-between`}>
+                          <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 pt-8 transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
                             <div className="w-full h-4/5">
                               <Doughnut data={avgRateChart} options={avgRateOptions} />
                             </div>
-                            <span className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>{stats.avgRate}%</span>
+                            <p className={`text-xl font-semibold text-center ${theme === 'light' ? 'text-blue-600' : 'text-purple-400'}`}>{stats.avgRate}%</p>
                           </div>
                         </div>
                       </div>
@@ -632,7 +629,7 @@ export default function AdminPage() {
 
       {/* Chat Button */}
       <button
-        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-xl z-50 transition-all duration-200`}
+        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-xl z-50 transition-all duration-200 hover:scale-110`}
         onClick={() => setChatOpen(!chatOpen)}
         title="Chat with AI Assistant"
       >
@@ -650,7 +647,7 @@ export default function AdminPage() {
             {chatMessages.map((msg, i) => (
               <div
                 key={i}
-                className={`rounded-lg px-4 py-2 ${msg.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-black' : 'bg-purple-700 text-white') : (theme === 'light' ? 'bg-gray-200 text-black' : 'bg-gray-700 text-white')} ${msg.sender === 'user' ? 'ml-auto' : ''}`}
+                className={`rounded-lg px-4 py-2 ${msg.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-black' : 'bg-blue-700 text-white') : (theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white')} ${msg.sender === 'user' ? 'ml-auto' : ''}`}
               >
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
@@ -685,7 +682,7 @@ export default function AdminPage() {
       )}
 
       {/* Footer */}
-      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'} border-t ${theme === 'light' ? 'border-gray-200/10' : 'border-white/10'} py-4`}>
+      <footer className={`relative z-40 ${theme === 'light' ? 'bg-white/80' : 'bg-black/80'} border-t border-${theme === 'light' ? 'black/10' : 'white/10'} py-8`}>
         <div className={`text-center ${theme === 'light' ? 'text-black/50' : 'text-white/50'} text-base font-semibold`}>
           © {new Date().getFullYear()} Code Review Hub. All rights reserved.
         </div>
@@ -703,6 +700,9 @@ export default function AdminPage() {
         .animate-gradient-x {
           animation: gradient-x 15s ease infinite;
           background-size: 200% 200%;
+        }
+        .shadow-3xl {
+          box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
         }
       `}</style>
     </div>
