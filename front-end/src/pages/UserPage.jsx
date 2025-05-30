@@ -1110,7 +1110,7 @@ export default function UserPage() {
         aria-labelledby="team-members-modal-title"
       >
         <Modal.Header className={`team-members-modal-header ${theme === 'light' ? 'bg-gray-50 text-gray-900' : 'bg-gradient-to-r from-[#1e2533] to-[#2a3344] text-gray-100'} border-b border-${theme === 'light' ? 'gray-200' : 'gray-700'}`}>
-          <Modal.Title id="team-members-modal-title" className="text-xl font-semibold">
+          <Modal.Title id="team-members-modal-title" className="text-lg font-semibold">
             {selectedTeam?.name} Members
           </Modal.Title>
           <button
@@ -1122,39 +1122,40 @@ export default function UserPage() {
             ✕
           </button>
         </Modal.Header>
-        <Modal.Body className={`team-members-modal-body ${theme === 'light' ? 'bg-white' : 'bg-[#1e2533]'} py-6 px-8 max-h-[60vh] overflow-y-auto`}>
+        <Modal.Body className={`team-members-modal-body ${theme === 'light' ? 'bg-white' : 'bg-[#1e2533]'} py-4 px-6 max-h-[60vh] overflow-y-auto`}>  
           {teamMembers.length === 0 ? (
-            <p className={`text-center text-base ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`} aria-live="polite">
+            <p className={`text-center text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'}`} aria-live="polite">
               No members found.
             </p>
           ) : (
-            <div className="space-y-4" role="list" aria-label="Team members">
+            <div className="space-y-3" role="list" aria-label="Team members">
               {teamMembers.map(member => (
                 <div
                   key={member.username}
-                  className={`team-member-card flex items-center gap-4 p-4 rounded-xl border ${theme === 'light' ? 'border-gray-200 bg-gray-50 hover:bg-gray-100' : 'border-gray-700 bg-[#2a3344] hover:bg-[#353f55]'} transition-all duration-200 hover:shadow-md transform hover:-translate-y-0.5`}
+                  className={`team-member-card flex items-center gap-2 p-2 rounded-lg border ${theme === 'light' ? 'border-gray-200 bg-gray-50 hover:bg-gray-100' : 'border-gray-700 bg-[#2a3344] hover:bg-[#353f55]'} transition-all duration-200 hover:shadow-sm`}
                   role="listitem"
                 >
                   {member.avatar ? (
                     <img
                       src={member.avatar}
                       alt={`${member.name}'s avatar`}
-                      className="w-12 h-12 rounded-full object-cover ring-2 ring-offset-2 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}"
+                      className={`w-10 h-10 rounded-full object-cover ring-1 ring-offset-1 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}`}
                     />
                   ) : (
-                    <div className={`w-12 h-12 rounded-full flex items-center justify-center text-lg font-medium ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'} ring-2 ring-offset-2 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}`}>
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-medium ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'} ring-2 ring-offset-2 ring-offset-transparent ring-${theme === 'light' ? 'blue-500' : 'purple-500'}`}
+                    >
                       {member.name[0]}
                     </div>
                   )}
                   <div className="flex-1">
-                    <p className={`text-base font-medium ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`} aria-label={`Member name: ${member.name}`}>
+                    <p className={`text-sm font-medium ${theme === 'light' ? 'text-gray-900' : 'text-gray-100'}`} aria-label={`Member name: ${member.name}`}>
                       {member.name}
                     </p>
-                    <p className={`text-sm ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`} aria-label={`Member email: ${member.email}`}>
+                    <p className={`text-xs ${theme === 'light' ? 'text-gray-600' : 'text-gray-400'}`} aria-label={`Member email: ${member.email}`}>
                       {member.email}
                     </p>
                     {selectedTeam?.createdBy?.username === member.username && (
-                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded-full ${theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-purple-900 text-purple-300'}`}>
+                      <span className={`inline-block mt-1 px-2 py-0.5 text-xs font-semibold rounded-full ${theme === 'light' ? 'bg-blue-100 text-blue-700' : 'bg-purple-900 text-purple-300'}` }>
                         Team Admin
                       </span>
                     )}
@@ -1164,16 +1165,8 @@ export default function UserPage() {
             </div>
           )}
         </Modal.Body>
-        <Modal.Footer className={`team-members-modal-footer ${theme === 'light' ? 'bg-gray-50' : 'bg-[#1e2533]'} border-t border-${theme === 'light' ? 'gray-200' : 'gray-700'} px-8 py-4`}>
-          <Button
-            onClick={() => setShowTeamMembersModal(false)}
-            className={`team-members-modal-button px-6 py-2 text-sm font-medium rounded-lg ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} transition-colors duration-200`}
-            aria-label="Close modal"
-          >
-            Close
-          </Button>
-        </Modal.Footer>
       </Modal>
+
 
       <button
         className={`fixed bottom-5 right-5 w-14 h-14 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} flex items-center justify-center shadow-lg z-50`}
