@@ -20,7 +20,7 @@ export default function LoginPage() {
   }, [theme]);
 
   const handleLogin = () => {
-    window.location.href = "http://localhost:8080/oauth2/authorization/bitbucket-login";
+    window.location.href = `${process.env.REACT_APP_BACKEND_URL}/oauth2/authorization/bitbucket-login`;
   };
 
   return (

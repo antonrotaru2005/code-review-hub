@@ -208,7 +208,7 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch('/logout', { method: 'POST', credentials: 'include' });
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, { method: 'POST', credentials: 'include' });
     } catch (err) {
       console.error('Logout failed', err);
     } finally {

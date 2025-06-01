@@ -30,7 +30,7 @@ export default function CreatePrPage() {
 
         // Fetch webhook token
         try {
-          const response = await fetch('/api/user/webhook-token', {
+          const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/webhook-token`, {
             method: 'GET',
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' }
@@ -66,7 +66,7 @@ export default function CreatePrPage() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      await fetch('/logout', { method: 'POST', credentials: 'include' });
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, { method: 'POST', credentials: 'include' });
     } catch {}
     finally {
       setUser(null);

@@ -1,14 +1,5 @@
-// src/api/chat.js
-
-/**
- * Trimite un mesaj către endpoint-ul /api/chat și primește răspunsul AI-ului.
- * @param {string} ai    – ex. "ChatGPT"
- * @param {string} model – ex. "gpt-4o-mini"
- * @param {string} message
- * @returns {Promise<string>} reply
- */
 export async function sendChat(ai, model, history) {
-  const res = await fetch('/api/chat', {
+  const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/chat`, {
     method: 'POST',
     credentials: 'include',
     headers: {

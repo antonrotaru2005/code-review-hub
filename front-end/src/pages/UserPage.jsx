@@ -334,20 +334,42 @@ export default function UserPage() {
           setReviewAspects(allReviewAspects);
           setSelectedAspects([]);
         }
+        
         try {
-          const response = await fetch('/api/user/webhook-token', {
-            method: 'GET',
-            credentials: 'include',
-            headers: { 'Content-Type': 'application/json' }
-          });
-          if (response.ok) {
-            const t = await response.json();
-            setToken(t.token);
-            setWebhookEnabled(true);
+          const response = await fetch(
+            `${process.env.REACT_APP_BACKEND_URL}/api/user/webhook-token`,
+            {
+              method: 'GET',
+              credentials: 'include',
+              headers: { 'Content-Type': 'application/json' }
+            }
+          );
+
+          if (response.status === 200) {
+            const contentType = response.headers.get('Content-Type') || '';
+            if (contentType.includes('application/json')) {
+              const result = await response.json();
+              setToken(result.token);
+              setWebhookEnabled(true);
+            } else {
+              console.warn(
+                'Așteptat JSON de la /webhook-token, dar Content-Type nu e JSON:', 
+                contentType
+              );
+              setWebhookEnabled(false);
+              setToken(null);
+            }
+
+          } else if (response.status === 204) {
+            setWebhookEnabled(false);
+            setToken(null);
+
           } else {
+            console.warn(`/webhook-token returned ${response.status}, tratăm ca no token.`);
             setWebhookEnabled(false);
             setToken(null);
           }
+
         } catch (tokenErr) {
           console.error('Failed to check webhook status:', tokenErr);
           setWebhookEnabled(false);
@@ -421,7 +443,7 @@ export default function UserPage() {
   useEffect(() => {
     if (!user || error || loading || !webhookEnabled) return;
 
-    const socket = new SockJS('/ws-feedback');
+    const socket = new SockJS(`${process.env.REACT_APP_BACKEND_URL}/ws-feedback`);
     const client = new Client({
       webSocketFactory: () => socket,
       reconnectDelay: 5000,
@@ -518,7 +540,7 @@ export default function UserPage() {
 
   const handleLogout = async () => {
     try {
-      const response = await fetch('/logout', {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' }
@@ -546,10 +568,10 @@ export default function UserPage() {
 
   const handleModelChange = async (ai, model) => {
     try {
-      await fetch(`/api/user/ai?ai=${encodeURIComponent(ai)}&model=${encodeURIComponent(model)}`, { method: 'POST', credentials: 'include' });
+      await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/ai?ai=${encodeURIComponent(ai)}&model=${encodeURIComponent(model)}`, { method: 'POST', credentials: 'include' });
       const updatedUser = await getUserInfo();
       setUser(updatedUser);
-    } catch (e) {
+    } catch (e) { 
       console.error('Failed to set model preference:', e);
     }
   };

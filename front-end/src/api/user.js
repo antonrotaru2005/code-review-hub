@@ -1,5 +1,5 @@
 export async function getUserInfo() {
-  const response = await fetch('/api/user', { credentials: 'include' });
+  const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user`, { credentials: 'include' });
   if (!response.ok) {
     const contentType = response.headers.get('Content-Type');
     if (contentType && !contentType.includes('application/json')) {
@@ -12,7 +12,7 @@ export async function getUserInfo() {
 }
 
 export async function getUserFeedbacks(username) {
-  const response = await fetch(`/api/feedbacks/user/${username}`, {
+  const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/feedbacks/user/${username}`, {
     credentials: 'include'
   });
   if (!response.ok) {
@@ -22,7 +22,7 @@ export async function getUserFeedbacks(username) {
 }
 
 export async function enableWebhookToken() {
-  const response = await fetch('/api/user/webhook-token', {
+  const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/webhook-token`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' }
@@ -41,7 +41,7 @@ export async function enableWebhookToken() {
 }
 
 export async function disableWebhookToken() {
-  const response = await fetch('/api/user/webhook-token', {
+  const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/webhook-token`, {
     method: 'DELETE',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' }
@@ -62,7 +62,7 @@ export async function disableWebhookToken() {
 
 export async function getUserRepos(username) {
   try {
-    const response = await fetch(`/api/user/repos/${username}`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/repos/${username}`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -79,7 +79,7 @@ export async function getUserRepos(username) {
 
 export async function getUserReviewAspects(username) {
   try {
-    const response = await fetch(`/api/user/${username}/aspects`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/${username}/aspects`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -96,7 +96,7 @@ export async function getUserReviewAspects(username) {
 
 export async function updateUserReviewAspects(username, aspects) {
   try {
-    const response = await fetch(`/api/user/${username}/aspects`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/user/${username}/aspects`, {
       method: 'PUT',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -114,7 +114,7 @@ export async function updateUserReviewAspects(username, aspects) {
 
 export async function getUserTeams() {
   try {
-    const response = await fetch('/api/teams', {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -131,7 +131,7 @@ export async function getUserTeams() {
 
 export async function createTeam(name, password) {
   try {
-    const response = await fetch('/api/teams', {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -150,7 +150,7 @@ export async function createTeam(name, password) {
 
 export async function joinTeam(teamId, password) {
   try {
-    const response = await fetch(`/api/teams/${teamId}/join`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams/${teamId}/join`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -169,7 +169,7 @@ export async function joinTeam(teamId, password) {
 
 export async function leaveTeam(teamId) {
   try {
-    const response = await fetch(`/api/teams/${teamId}/leave`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams/${teamId}/leave`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -187,7 +187,7 @@ export async function leaveTeam(teamId) {
 
 export async function deleteTeam(teamId) {
   try {
-    const response = await fetch(`/api/teams/${teamId}`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams/${teamId}`, {
       method: 'DELETE',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }
@@ -204,7 +204,7 @@ export async function deleteTeam(teamId) {
 
 export async function getTeamMembers(teamId) {
   try {
-    const response = await fetch(`/api/teams/${teamId}/members`, {
+    const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/teams/${teamId}/members`, {
       method: 'GET',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' }

@@ -1,5 +1,5 @@
 export async function getAdminUsers() {
-    const res = await fetch('/api/admin/users', {
+    const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/users`, {
       credentials: 'include'
     });
     if (!res.ok) {
@@ -10,7 +10,7 @@ export async function getAdminUsers() {
 }
 
 export async function getAdminTeams() {
-    const res = await fetch('/api/admin/teams', {
+    const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/teams`, {
       credentials: 'include'
     });
     if (!res.ok) {
@@ -21,7 +21,7 @@ export async function getAdminTeams() {
 }
 
 export async function getTeamMembers(teamId) {
-    const res = await fetch(`/api/admin/teams/${teamId}/members`, {
+    const res = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/admin/teams/${teamId}/members`, {
       credentials: 'include'
     });
     if (!res.ok) {
@@ -33,7 +33,7 @@ export async function getTeamMembers(teamId) {
 
 export async function getAdminFeedbacksByUser(username) {
     const res = await fetch(
-      `/api/admin/users/${encodeURIComponent(username)}/feedbacks`, {
+      `${process.env.REACT_APP_BACKEND_URL}/api/admin/users/${encodeURIComponent(username)}/feedbacks`, {
         credentials: 'include'
       }
     );
@@ -46,8 +46,8 @@ export async function getAdminFeedbacksByUser(username) {
 
 export async function getUserStats(teamId, username) {
     const url = teamId
-      ? `/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/stats`
-      : `/api/admin/users/${encodeURIComponent(username)}/stats`;
+      ? `${process.env.REACT_APP_BACKEND_URL}/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/stats`
+      : `${process.env.REACT_APP_BACKEND_URL}/api/admin/users/${encodeURIComponent(username)}/stats`;
     const res = await fetch(url, {
       credentials: 'include'
     });
@@ -60,8 +60,8 @@ export async function getUserStats(teamId, username) {
 
 export async function deleteMemberFeedback(teamId, username, feedbackId) {
     const url = teamId
-      ? `/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/feedbacks/${feedbackId}`
-      : `/api/admin/feedbacks/${feedbackId}`;
+      ? `${process.env.REACT_APP_BACKEND_URL}/api/admin/teams/${teamId}/members/${encodeURIComponent(username)}/feedbacks/${feedbackId}`
+      : `${process.env.REACT_APP_BACKEND_URL}/api/admin/feedbacks/${feedbackId}`;
     const res = await fetch(url, {
       method: 'DELETE',
       credentials: 'include'

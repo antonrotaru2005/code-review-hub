@@ -9,6 +9,7 @@ import com.review.reviewservice.model.repository.WebhookTokenRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.oauth2.core.user.OAuth2User;
@@ -212,8 +213,13 @@ public class UserController {
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
 
             return webhookTokenRepository.findByUserAndActiveTrue(user)
-                    .map(t -> ResponseEntity.ok(Map.of("token", t.getToken())))
-                    .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                    .map(t -> ResponseEntity
+                            .ok()
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .body(Map.of("token", t.getToken()))
+                    )
+                    // înlocuim 404 Not Found cu 204 No Content
+                    .orElseGet(() -> ResponseEntity.noContent().build());
         } catch (ResponseStatusException e) {
             throw e;
         } catch (Exception e) {
@@ -221,6 +227,7 @@ public class UserController {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Eroare internă la verificarea webhook-ului", e);
         }
     }
+
 
     @GetMapping("/{username}/aspects")
     public ResponseEntity<List<String>> getReviewAspects(@PathVariable String username) {

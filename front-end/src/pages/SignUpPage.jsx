@@ -20,7 +20,7 @@ export default function SignUpPage() {
   }, [theme]);
 
   const handleSignUp = () => {
-    window.location.href = 'http://localhost:8080/oauth2/authorization/bitbucket-signup';
+    window.location.href = `${process.env.REACT_APP_BACKEND_URL}/oauth2/authorization/bitbucket-signup`;
   };
 
   return (
