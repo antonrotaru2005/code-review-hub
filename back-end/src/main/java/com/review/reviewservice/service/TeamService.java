@@ -23,17 +23,14 @@ public class TeamService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private static final String USER_NOT_FOUND_PREFIX = "User not found: ";
-    private final TeamService selfTeamService;
 
     @Autowired
     public TeamService(TeamRepository teamRepository,
                        UserRepository userRepository,
-                       RoleRepository roleRepository,
-                       TeamService selfTeamService) {
+                       RoleRepository roleRepository) {
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
-        this.selfTeamService = selfTeamService;
     }
 
     @Transactional
@@ -59,7 +56,7 @@ public class TeamService {
     public void joinTeam(Long teamId, String username, String providedPassword) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
 
         if (!team.getPassword().equals(providedPassword)) {
             throw new WrongTeamPasswordException();
@@ -77,7 +74,7 @@ public class TeamService {
     public void leaveTeam(Long teamId, String username) {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
 
         if (!team.getMembers().contains(user)) {
             throw new ResourceNotFoundException(
@@ -102,7 +99,7 @@ public class TeamService {
 
     @Transactional
     public void deleteTeam(Long teamId, String username) {
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
         if (!team.getCreatedBy().getUsername().equals(username)) {
             throw new AccessDeniedException("You are not the admin of the team: " + username);
         }
@@ -111,8 +108,8 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public List<User> getTeamMembers(Long teamId, String username) {
-        Team team = selfTeamService.findById(teamId);
-        if (!selfTeamService.isTeamMember(teamId, username) && !selfTeamService.isTeamAdmin(teamId, username)) {
+        Team team = findById(teamId);
+        if (!isTeamMember(teamId, username) && !isTeamAdmin(teamId, username)) {
             throw new AccessDeniedException("You do not have access to the team members: " + username);
         }
         return List.copyOf(team.getMembers());
@@ -120,19 +117,19 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public List<User> getTeamMembers(Long teamId) {
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
         return List.copyOf(team.getMembers());
     }
 
     @Transactional(readOnly = true)
     public boolean isTeamAdmin(Long teamId, String username) {
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
         return team.getCreatedBy().getUsername().equals(username);
     }
 
     @Transactional(readOnly = true)
     public boolean isTeamMember(Long teamId, String username) {
-        Team team = selfTeamService.findById(teamId);
+        Team team = findById(teamId);
         return team.getMembers().stream()
                 .anyMatch(u -> u.getUsername().equals(username));
     }

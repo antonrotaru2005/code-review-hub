@@ -48,7 +48,7 @@ public class BitbucketService {
 
             if (response.getBody() != null && response.getBody().getValues() != null) {
                 for (DiffstatEntry entry : response.getBody().getValues()) {
-                    FileInfo file = entry.get_new();
+                    FileInfo file = entry.getNewFile();
                     if (file != null && file.getPath() != null) {
                         String fileContentUrl = file.getLinks().getSelf().getHref();
                         ResponseEntity<String> contentResponse = restTemplate.exchange(
