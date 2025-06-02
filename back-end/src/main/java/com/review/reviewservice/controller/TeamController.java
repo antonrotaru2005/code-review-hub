@@ -15,13 +15,13 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/teams")
 public class TeamController {
 
     private final TeamService teamService;
+    private static final String USERNAME_KEY = "username";
 
     @Autowired
     public TeamController(TeamService teamService) {
@@ -32,10 +32,10 @@ public class TeamController {
     public ResponseEntity<List<TeamDto>> getMyTeams(
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         List<TeamDto> dtos = teamService.getTeamsForUser(username).stream()
                 .map(TeamDto::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(dtos);
     }
 
@@ -44,7 +44,7 @@ public class TeamController {
             @RequestBody CreateTeamDto dto,
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         var team = teamService.createTeam(dto.name(), dto.password(), username);
         return ResponseEntity.ok(TeamDto.fromEntity(team));
     }
@@ -55,7 +55,7 @@ public class TeamController {
             @AuthenticationPrincipal OAuth2User oauthUser,
             @RequestBody JoinTeamDto dto
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         teamService.joinTeam(id, username, dto.password());
         return ResponseEntity.ok().build();
     }
@@ -65,7 +65,7 @@ public class TeamController {
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         teamService.leaveTeam(id, username);
         return ResponseEntity.ok().build();
     }
@@ -76,7 +76,7 @@ public class TeamController {
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         teamService.deleteTeam(id, username);
         return ResponseEntity.noContent().build();
     }
@@ -87,7 +87,7 @@ public class TeamController {
             @PathVariable Long id,
             @AuthenticationPrincipal OAuth2User oauthUser
     ) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         var members = teamService.getTeamMembers(id, username)
                 .stream()
                 .map(u -> new UserDto(
@@ -99,7 +99,7 @@ public class TeamController {
                         u.getRoles().stream().map(Role::getName).toList(),
                         u.getTeams().stream().map(Team::getName).toList()
                 ))
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(members);
     }
 }

@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class FeedbackService {
@@ -26,7 +25,7 @@ public class FeedbackService {
     public List<FeedbackDto> getAllFeedbacks() {
         return feedbackRepository.findAll().stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public void deleteById(Long id) {
@@ -56,13 +55,13 @@ public class FeedbackService {
     public List<FeedbackDto> getByPr(Long prId) {
         return feedbackRepository.findByPrId(prId).stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     public List<FeedbackDto> getByUser(String username) {
         return feedbackRepository.findByUserUsername(username).stream()
                 .map(this::toDto)
-                .collect(Collectors.toList());
+                .toList();
     }
 
     private FeedbackDto toDto(Feedback f) {

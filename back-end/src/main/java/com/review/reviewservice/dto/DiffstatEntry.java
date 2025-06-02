@@ -15,7 +15,7 @@ public class DiffstatEntry {
     private String status;
 
     @JsonProperty("new")
-    private FileInfo _new;
+    private FileInfo newFile;
 
     private FileInfo old;
 }

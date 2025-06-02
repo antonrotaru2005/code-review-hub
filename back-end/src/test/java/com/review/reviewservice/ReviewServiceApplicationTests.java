@@ -40,7 +40,9 @@ class ReviewServiceApplicationTests {
 					try {
 						int rate = Integer.parseInt(next.replaceAll("\\D", ""));
 						return clampRate(rate);
-					} catch (NumberFormatException ignored) {}
+					} catch (NumberFormatException ignored) {
+						// Ignored because invalid rates are handled by fallback logic in the calling method
+					}
 				}
 				Matcher m = numPattern.matcher(lines[i]);
 				if (m.find()) {

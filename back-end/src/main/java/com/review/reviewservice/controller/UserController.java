@@ -34,6 +34,9 @@ public class UserController {
     private final AiModelRepository aiModelRepository;
     private final WebhookTokenRepository webhookTokenRepository;
     private final FeedbackRepository feedbackRepository;
+    private static final String USER_NOT_FOUND_PREFIX = "User not found: ";
+    private static final String USERNAME_KEY = "username";
+    private static final String NO_USERNAME_MESSAGE = "The attribute 'username' is missing.";
 
     @Autowired
     public UserController(UserRepository userRepository, AiModelRepository aiModelRepository, WebhookTokenRepository webhookTokenRepository, FeedbackRepository feedbackRepository) {
@@ -54,9 +57,9 @@ public class UserController {
             log.error("OAuth2User este null în getUserInfo");
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
         }
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         if (username == null) {
-            log.error("Atributul 'username' lipsește din OAuth2User: {}", oauthUser.getAttributes());
+            log.error(NO_USERNAME_MESSAGE, oauthUser.getAttributes());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
         }
         String displayName = oauthUser.getAttribute("display_name");
@@ -64,7 +67,7 @@ public class UserController {
             displayName = username;
         }
         User appUser = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
         String email = appUser.getEmail();
         String avatarUrl = null;
         Object links = oauthUser.getAttribute("links");
@@ -74,7 +77,7 @@ public class UserController {
                 avatarUrl = (String) av.get("href");
             }
         }
-        AiModel ai_model = appUser.getAiModel();
+        AiModel aiModel = appUser.getAiModel();
 
         List<String> roles = appUser.getRoles().stream()
                 .map(Role::getName)
@@ -84,7 +87,7 @@ public class UserController {
                 .map(Team::getName)
                 .toList();
 
-        return new UserDto(username, displayName, email, avatarUrl, ai_model, roles, teams);
+        return new UserDto(username, displayName, email, avatarUrl, aiModel, roles, teams);
     }
 
     /**
@@ -99,13 +102,13 @@ public class UserController {
             @AuthenticationPrincipal OAuth2User oauthUser,
             @RequestParam String ai,
             @RequestParam String model) {
-        String username = oauthUser.getAttribute("username");
+        String username = oauthUser.getAttribute(USERNAME_KEY);
         if (username == null) {
-            log.error("Atributul 'username' lipsește din OAuth2User: {}", oauthUser.getAttributes());
+            log.error(NO_USERNAME_MESSAGE, oauthUser.getAttributes());
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
         }
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
 
         AiModel aiModel = aiModelRepository.findByAiIgnoreCaseAndModelIgnoreCase(ai, model)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Model AI nu a fost găsit pentru ai: " + ai + " și model: " + model));
@@ -125,14 +128,14 @@ public class UserController {
                 log.warn("Acces neautorizat pentru activarea webhook-ului: OAuth2User este null");
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
             }
-            String username = oauth.getAttribute("username");
+            String username = oauth.getAttribute(USERNAME_KEY);
             if (username == null) {
-                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                log.error(NO_USERNAME_MESSAGE, oauth.getAttributes());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
             }
             log.info("Activare webhook pentru utilizatorul: {}", username);
             User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
 
             // Dezactivează tokenurile existente
             webhookTokenRepository.findByUserAndActiveTrue(user)
@@ -169,14 +172,14 @@ public class UserController {
                 log.warn("Acces neautorizat pentru dezactivarea webhook-ului: OAuth2User este null");
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
             }
-            String username = oauth.getAttribute("username");
+            String username = oauth.getAttribute(USERNAME_KEY);
             if (username == null) {
-                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                log.error(NO_USERNAME_MESSAGE, oauth.getAttributes());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
             }
             log.info("Dezactivare webhook pentru utilizatorul: {}", username);
             User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
 
             webhookTokenRepository.findByUserAndActiveTrue(user)
                     .ifPresent(t -> {
@@ -203,14 +206,14 @@ public class UserController {
                 log.warn("Acces neautorizat pentru verificarea webhook-ului: OAuth2User este null");
                 throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Niciun utilizator OAuth2 autentificat găsit");
             }
-            String username = oauth.getAttribute("username");
+            String username = oauth.getAttribute(USERNAME_KEY);
             if (username == null) {
-                log.error("Atributul 'username' lipsește din OAuth2User: {}", oauth.getAttributes());
+                log.error(NO_USERNAME_MESSAGE, oauth.getAttributes());
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Atributul 'username' lipsește");
             }
             log.info("Verificare token webhook pentru utilizatorul: {}", username);
             User user = userRepository.findByUsername(username)
-                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                    .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
 
             return webhookTokenRepository.findByUserAndActiveTrue(user)
                     .map(t -> ResponseEntity
@@ -232,7 +235,7 @@ public class UserController {
     @GetMapping("/{username}/aspects")
     public ResponseEntity<List<String>> getReviewAspects(@PathVariable String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
         List<String> aspects = user.getReviewAspectsList();
         if (aspects == null || aspects.isEmpty()) {
             aspects = Arrays.asList(
@@ -260,7 +263,7 @@ public class UserController {
             @PathVariable String username,
             @RequestBody List<String> aspects) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Utilizator nu a fost găsit: " + username));
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, USER_NOT_FOUND_PREFIX + username));
 
         if (aspects == null || aspects.isEmpty()) {
             // Default values
@@ -281,7 +284,7 @@ public class UserController {
         userRepository.findByUsername(username)
                 .orElseThrow(() ->
                         new ResponseStatusException(HttpStatus.NOT_FOUND,
-                                "User not found: " + username));
+                                USER_NOT_FOUND_PREFIX + username));
 
         List<String> repos = feedbackRepository.findDistinctRepoFullNamesByUsername(username);
         return ResponseEntity.ok(repos);

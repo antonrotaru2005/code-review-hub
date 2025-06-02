@@ -32,6 +32,8 @@ public class WebhookController {
     private final UserRepository userRepository;
     private final WebhookTokenRepository webhookTokenRepository;
     private final SimpMessagingTemplate messagingTemplate;
+    private static final String WEBSOCKET_DESTINATION = "/topic/feedback/";
+    private static final String STAGE_PREFIX = "stage";
 
     @Autowired
     public WebhookController(BitbucketService bitbucketService, CodeReviewService codeReviewService,
@@ -64,16 +66,16 @@ public class WebhookController {
 
         // 1. Fetch modified files from Bitbucket
         messagingTemplate.convertAndSend(
-                "/topic/feedback/" + username,
-                Map.of("stage", "Processing PR")
+                WEBSOCKET_DESTINATION + username,
+                Map.of(STAGE_PREFIX, "Processing PR")
         );
 
         List<FileData> fetchedFiles = bitbucketService.getModifiedFiles(payload);
 
         // 2. Determine the preferred AI for the user
         messagingTemplate.convertAndSend(
-                "/topic/feedback/" + username,
-                Map.of("stage", "Files fetched")
+                WEBSOCKET_DESTINATION + username,
+                Map.of(STAGE_PREFIX, "Files fetched")
         );
 
         String ai = Optional.ofNullable(user.getAiModel())
@@ -85,8 +87,8 @@ public class WebhookController {
 
         // 3. Generate feedback using the selected AI
         messagingTemplate.convertAndSend(
-                "/topic/feedback/" + username,
-                Map.of("stage", "AI Code Analysis")
+                WEBSOCKET_DESTINATION + username,
+                Map.of(STAGE_PREFIX, "AI Code Analysis")
         );
 
         List<String> aspects = user.getReviewAspectsList();
@@ -100,8 +102,8 @@ public class WebhookController {
 
             // Post comment on PR
             messagingTemplate.convertAndSend(
-                    "/topic/feedback/" + username,
-                    Map.of("stage", "Saving feedback")
+                    WEBSOCKET_DESTINATION + username,
+                    Map.of(STAGE_PREFIX, "Saving feedback")
             );
 
             bitbucketService.postCommentToPullRequest(payload, feedback);
@@ -110,8 +112,8 @@ public class WebhookController {
             feedbackService.save(prId, uuid, feedback, model, repoFullName, rate);
 
             messagingTemplate.convertAndSend(
-                    "/topic/feedback/" + username,
-                    Map.of("stage", "Done", "status", "done", "prId", prId)
+                    WEBSOCKET_DESTINATION + username,
+                    Map.of(STAGE_PREFIX, "Done", "status", "done", "prId", prId)
             );
         }
         return ResponseEntity.ok("Webhook processed and feedback saved using " + ai + " with model " + model + ".");
@@ -129,7 +131,9 @@ public class WebhookController {
                     try {
                         int rate = Integer.parseInt(next.replaceAll("\\D", ""));
                         return clampRate(rate);
-                    } catch (NumberFormatException ignored) {}
+                    } catch (NumberFormatException ignored) {
+                        // Ignored because invalid rates are handled by fallback logic in the calling method
+                    }
                 }
                 Matcher m = numPattern.matcher(lines[i]);
                 if (m.find()) {

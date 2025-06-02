@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.Customizer;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -36,6 +37,7 @@ public class SecurityConfig {
 
     private final CustomOAuth2UserService customOAuth2UserService;
     private final String frontendUrl;
+    private static final MediaType APPLICATION_JSON = MediaType.APPLICATION_JSON;
 
     @Autowired
     public SecurityConfig(
@@ -60,12 +62,12 @@ public class SecurityConfig {
                 )
                 .exceptionHandling(ex -> ex
                         .authenticationEntryPoint((req, res, ex2) -> {
-                            res.setContentType("application/json");
+                            res.setContentType(APPLICATION_JSON.toString());
                             res.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
                             res.getWriter().write("{\"error\": \"Unauthorized\", \"message\": \"Authentication required\"}");
                         })
                         .accessDeniedHandler((req, res, ex2) -> {
-                            res.setContentType("application/json");
+                            res.setContentType(APPLICATION_JSON.toString());
                             res.setStatus(HttpServletResponse.SC_FORBIDDEN);
                             res.getWriter().write("{\"error\": \"Forbidden\", \"message\": \"Access Denied\"}");
                         })
@@ -99,7 +101,7 @@ public class SecurityConfig {
             response.setHeader("Access-Control-Allow-Origin", frontendUrl);
             response.setHeader("Access-Control-Allow-Credentials", "true");
             response.setStatus(HttpServletResponse.SC_OK);
-            response.setContentType("application/json");
+            response.setContentType(APPLICATION_JSON.toString());
             response.getWriter().write("{\"message\": \"Logout successful\"}");
         };
     }

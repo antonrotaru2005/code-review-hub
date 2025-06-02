@@ -19,7 +19,6 @@ import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/admin")
@@ -95,7 +94,7 @@ public class AdminController {
                 : teamService.getTeamsCreatedBy(username)
         ).stream()
                 .map(TeamDto::fromEntity)
-                .collect(Collectors.toList());
+                .toList();
 
         return ResponseEntity.ok(dtos);
     }
@@ -119,7 +118,7 @@ public class AdminController {
                         u.getRoles().stream().map(Role::getName).toList(),
                         u.getTeams().stream().map(Team::getName).toList()
                 ))
-                .collect(Collectors.toList());
+                .toList();
         return ResponseEntity.ok(dtos);
     }
 

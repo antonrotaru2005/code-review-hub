@@ -76,7 +76,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             if (!exists) {
                 throw new UserNotFoundException("User not found");
             }
-            User appUser = userRepository.findByUsername(username).get();
+            User appUser = userRepository.findByUsername(username)
+                    .orElseThrow(() -> new CodeReviewServiceException("User not found for username: " + username));
             return buildOAuth2User(appUser, oauthUser.getAttributes());
         }
     }
@@ -90,7 +91,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
                 .collect(Collectors.toSet());
         log.info("Building OAuth2User for username: {}, roles: {}",
                 appUser.getUsername(),
-                auth.stream().map(GrantedAuthority::getAuthority).collect(Collectors.toList()));
+                auth.stream().map(GrantedAuthority::getAuthority).toList());
         return new DefaultOAuth2User(auth, attributes, "username");
     }
 

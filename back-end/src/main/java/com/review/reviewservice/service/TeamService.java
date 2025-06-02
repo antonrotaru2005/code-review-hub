@@ -10,6 +10,7 @@ import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.repository.TeamRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.RoleRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,19 +22,24 @@ public class TeamService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private static final String USER_NOT_FOUND_PREFIX = "User not found: ";
+    private final TeamService selfTeamService;
 
+    @Autowired
     public TeamService(TeamRepository teamRepository,
                        UserRepository userRepository,
-                       RoleRepository roleRepository) {
+                       RoleRepository roleRepository,
+                       TeamService selfTeamService) {
         this.teamRepository = teamRepository;
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
+        this.selfTeamService = selfTeamService;
     }
 
     @Transactional
     public Team createTeam(String name, String password, String creatorUsername) {
         User creator = userRepository.findByUsername(creatorUsername)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + creatorUsername));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + creatorUsername));
         Team team = new Team();
         team.setName(name);
         team.setCreatedBy(creator);
@@ -52,8 +58,8 @@ public class TeamService {
     @Transactional
     public void joinTeam(Long teamId, String username, String providedPassword) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        Team team = findById(teamId);
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
+        Team team = selfTeamService.findById(teamId);
 
         if (!team.getPassword().equals(providedPassword)) {
             throw new WrongTeamPasswordException();
@@ -70,8 +76,8 @@ public class TeamService {
     @Transactional
     public void leaveTeam(Long teamId, String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
-        Team team = findById(teamId);
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
+        Team team = selfTeamService.findById(teamId);
 
         if (!team.getMembers().contains(user)) {
             throw new ResourceNotFoundException(
@@ -96,7 +102,7 @@ public class TeamService {
 
     @Transactional
     public void deleteTeam(Long teamId, String username) {
-        Team team = findById(teamId);
+        Team team = selfTeamService.findById(teamId);
         if (!team.getCreatedBy().getUsername().equals(username)) {
             throw new AccessDeniedException("You are not the admin of the team: " + username);
         }
@@ -105,8 +111,8 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public List<User> getTeamMembers(Long teamId, String username) {
-        Team team = findById(teamId);
-        if (!isTeamMember(teamId, username) && !isTeamAdmin(teamId, username)) {
+        Team team = selfTeamService.findById(teamId);
+        if (!selfTeamService.isTeamMember(teamId, username) && !selfTeamService.isTeamAdmin(teamId, username)) {
             throw new AccessDeniedException("You do not have access to the team members: " + username);
         }
         return List.copyOf(team.getMembers());
@@ -114,19 +120,19 @@ public class TeamService {
 
     @Transactional(readOnly = true)
     public List<User> getTeamMembers(Long teamId) {
-        Team team = findById(teamId);
+        Team team = selfTeamService.findById(teamId);
         return List.copyOf(team.getMembers());
     }
 
     @Transactional(readOnly = true)
     public boolean isTeamAdmin(Long teamId, String username) {
-        Team team = findById(teamId);
+        Team team = selfTeamService.findById(teamId);
         return team.getCreatedBy().getUsername().equals(username);
     }
 
     @Transactional(readOnly = true)
     public boolean isTeamMember(Long teamId, String username) {
-        Team team = findById(teamId);
+        Team team = selfTeamService.findById(teamId);
         return team.getMembers().stream()
                 .anyMatch(u -> u.getUsername().equals(username));
     }
@@ -134,7 +140,7 @@ public class TeamService {
     @Transactional(readOnly = true)
     public boolean isTeamAdminForUser(String username, String adminUsername) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
         return user.getTeams().stream()
                 .anyMatch(team -> team.getCreatedBy().getUsername().equals(adminUsername));
     }
@@ -148,7 +154,7 @@ public class TeamService {
     @Transactional(readOnly = true)
     public List<Team> getTeamsForUser(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
         return new ArrayList<>(user.getTeams());
     }
 
@@ -160,7 +166,7 @@ public class TeamService {
     @Transactional(readOnly = true)
     public List<Team> getTeamsCreatedBy(String username) {
         User user = userRepository.findByUsername(username)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
         return teamRepository.findAllByCreatedBy(user);
     }
 }
