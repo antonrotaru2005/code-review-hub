@@ -6,10 +6,7 @@ import com.review.reviewservice.config.BitbucketProperties;
 import com.review.reviewservice.dto.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
@@ -73,7 +70,7 @@ public class BitbucketService {
 
             HttpHeaders headers = new HttpHeaders();
             headers.setBasicAuth(properties.getUsername(), properties.getPassword());
-            headers.set("Content-Type", "application/json");
+            headers.setContentType(MediaType.APPLICATION_JSON);
 
             ObjectNode commentPayload = objectMapper.createObjectNode();
             ObjectNode contentNode = objectMapper.createObjectNode();
@@ -88,6 +85,36 @@ public class BitbucketService {
             restTemplate.exchange(commentUrl, HttpMethod.POST, entity, String.class);
         } catch (Exception e) {
             log.error("Error posting comment to PR: {}", e.getMessage(), e);
+        }
+    }
+
+    public void postInlineCommentToPullRequest(BitbucketWebhookPayload payload, InlineComment inlineComment) {
+        try {
+            String commentUrl = String.format("https://api.bitbucket.org/2.0/repositories/%s/pullrequests/%s/comments",
+                    payload.getRepository().getFullName(), payload.getPullRequest().getId());
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBasicAuth(properties.getUsername(), properties.getPassword());
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            ObjectNode commentPayload = objectMapper.createObjectNode();
+            ObjectNode contentNode = objectMapper.createObjectNode();
+            contentNode.put("raw", inlineComment.getComment());
+            commentPayload.set("content", contentNode);
+
+            ObjectNode inlineNode = objectMapper.createObjectNode();
+            inlineNode.put("path", inlineComment.getPath());
+            inlineNode.put("to", inlineComment.getLineNumber());
+            commentPayload.set("inline", inlineNode);
+
+            String commentPayloadString = objectMapper.writeValueAsString(commentPayload);
+            log.info("Bitbucket inline comment payload: {}", commentPayloadString);
+
+            HttpEntity<String> entity = new HttpEntity<>(commentPayloadString, headers);
+            restTemplate.exchange(commentUrl, HttpMethod.POST, entity, String.class);
+        } catch (Exception e) {
+            log.error("Error posting inline comment to PR at {}:{}: {}",
+                    inlineComment.getPath(), inlineComment.getLineNumber(), e.getMessage(), e);
         }
     }
 }

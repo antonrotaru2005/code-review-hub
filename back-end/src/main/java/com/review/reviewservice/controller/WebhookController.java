@@ -2,6 +2,7 @@ package com.review.reviewservice.controller;
 
 import com.review.reviewservice.dto.BitbucketWebhookPayload;
 import com.review.reviewservice.dto.FileData;
+import com.review.reviewservice.dto.InlineComment;
 import com.review.reviewservice.model.entity.AiModel;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.entity.WebhookToken;
@@ -92,23 +93,35 @@ public class WebhookController {
         );
 
         List<String> aspects = user.getReviewAspectsList();
-
-        String feedback = codeReviewService.reviewFiles(fetchedFiles, ai, model, aspects);
+        CodeReviewService.ReviewResult reviewResult = codeReviewService.reviewFiles(fetchedFiles, ai, model, aspects);
+        String feedback = reviewResult.getGeneralFeedback();
 
         if (feedback != null) {
             Long prId = payload.getPullRequest().getId();
             String repoFullName = payload.getRepository().getFullName();
             int rate = extractRate(feedback);
 
-            // Post comment on PR
+            // Post general comment on PR
+            messagingTemplate.convertAndSend(
+                    WEBSOCKET_DESTINATION + username,
+                    Map.of(STAGE_PREFIX, "Posting general feedback")
+            );
+            bitbucketService.postCommentToPullRequest(payload, feedback);
+
+            // Post inline comments
+            messagingTemplate.convertAndSend(
+                    WEBSOCKET_DESTINATION + username,
+                    Map.of(STAGE_PREFIX, "Posting inline comments")
+            );
+            for (InlineComment inlineComment : reviewResult.getInlineComments()) {
+                bitbucketService.postInlineCommentToPullRequest(payload, inlineComment);
+            }
+
+            // Save feedback to database
             messagingTemplate.convertAndSend(
                     WEBSOCKET_DESTINATION + username,
                     Map.of(STAGE_PREFIX, "Saving feedback")
             );
-
-            bitbucketService.postCommentToPullRequest(payload, feedback);
-
-            // Save feedback to database
             feedbackService.save(prId, uuid, feedback, model, repoFullName, rate);
 
             messagingTemplate.convertAndSend(
