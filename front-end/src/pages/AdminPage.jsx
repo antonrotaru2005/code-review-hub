@@ -643,7 +643,7 @@ export default function AdminPage() {
         <div className={`fixed bottom-24 right-6 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
           <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
             <span className="font-semibold">AI Assistant</span>
-            <button onClick={() => setChatOpen(false)} className="text-white">Close</button>
+            <button onClick={() => setChatOpen(false)}>✕</button>
           </div>
           <div className={`flex-1 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'} p-4 space-y-2 overflow-y-auto`}>
             {chatMessages.map((msg, i) => (
