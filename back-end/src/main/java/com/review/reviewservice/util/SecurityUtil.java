@@ -4,7 +4,6 @@ import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.service.CustomOAuth2UserService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;

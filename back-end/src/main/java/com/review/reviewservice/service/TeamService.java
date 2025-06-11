@@ -48,6 +48,7 @@ public class TeamService {
         Role teamAdminRole = roleRepository.findByName(ROLE_TEAM_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: ROLE_TEAM_ADMIN"));
         creator.getRoles().add(teamAdminRole);
+
         userRepository.save(creator);
 
         reAuthenticate(creatorUsername);
@@ -91,23 +92,26 @@ public class TeamService {
         if (isCreator) {
             if (team.getMembers().isEmpty()) {
                 teamRepository.delete(team);
-                removeTeamAdminRole(user);
-                userRepository.save(user);
+                if (!hasOtherCreatedTeams(user, teamId)) {
+                    removeTeamAdminRole(user);
+                    userRepository.save(user);
+                }
                 reAuthenticate(username);
                 return;
             } else {
                 User newCreator = team.getMembers().iterator().next();
                 team.setCreatedBy(newCreator);
+                if (!hasOtherCreatedTeams(user, teamId)) {
+                    removeTeamAdminRole(user);
+                    userRepository.save(user);
+                }
             }
         }
 
         teamRepository.save(team);
+        userRepository.save(user);
 
-        if (user.getRoles().stream().anyMatch(role -> role.getName().equals(ROLE_TEAM_ADMIN))) {
-            removeTeamAdminRole(user);
-            userRepository.save(user);
-            reAuthenticate(username);
-        }
+        reAuthenticate(username);
     }
 
 
@@ -119,11 +123,21 @@ public class TeamService {
         if (!team.getCreatedBy().getUsername().equals(username)) {
             throw new AccessDeniedException("You are not the admin of the team: " + username);
         }
-        teamRepository.delete(team);
-        removeTeamAdminRole(user);
-        userRepository.save(user);
-        reAuthenticate(username);
 
+        for (String memberUsername : team.getMembers().stream().map(User::getUsername).toList()) {
+            User member = userRepository.findByUsername(memberUsername)
+                    .orElse(null);
+            if (member != null) {
+                member.getTeams().remove(team);
+                if (memberUsername.equals(username) && !hasOtherCreatedTeams(user, teamId)) {
+                    removeTeamAdminRole(member);
+                }
+                userRepository.save(member);
+            }
+        }
+
+        teamRepository.delete(team);
+        reAuthenticate(username);
     }
 
     @Transactional(readOnly = true)
@@ -197,5 +211,11 @@ public class TeamService {
 
         Map<String, Object> attributes = auth.getPrincipal().getAttributes();
         securityUtil.reAuthenticate(username, attributes);
+    }
+
+    private boolean hasOtherCreatedTeams(User user, Long excludeTeamId) {
+        return teamRepository.findAllByCreatedBy(user)
+                .stream()
+                .anyMatch(team -> !team.getId().equals(excludeTeamId));
     }
 }

@@ -50,7 +50,7 @@ export default function LoginPage() {
           </Link>
           <Link
             to="/signup"
-            className={`w-full sm:w-auto px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all`}
+            className={`w-full sm:w-auto text-center px-6 py-3 ${theme === 'light' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded-full transition-all`}
           >
             Sign Up
           </Link>

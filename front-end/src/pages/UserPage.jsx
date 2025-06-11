@@ -205,7 +205,8 @@ const handleSearchId = (e) => {
       setTeams(prev => [...prev, newTeam]);
       setNewTeamName('');
       setNewTeamPassword('');
-      setUser(prev => ({ ...prev, teamNames: [...prev.teamNames, newTeam.name] }));
+      const updatedUser = await getUserInfo();
+      setUser(updatedUser);
       setTeamSuccessPopup({ visible: true, message: 'Team created successfully!' });
       setTimeout(() => setTeamSuccessPopup({ visible: false, message: null }), 3000);
     } catch (error) {
@@ -236,7 +237,8 @@ const handleSearchId = (e) => {
       await joinTeam(parseInt(joinTeamId, 10), joinTeamPassword.trim());
       const updatedTeams = await getUserTeams();
       setTeams(updatedTeams);
-      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      const updatedUser = await getUserInfo();
+      setUser(updatedUser);
       setJoinTeamId('');
       setJoinTeamPassword('');
       setTeamSuccessPopup({ visible: true, message: 'Successfully joined the team!' });
@@ -263,7 +265,8 @@ const handleSearchId = (e) => {
       await leaveTeam(teamId);
       const updatedTeams = await getUserTeams();
       setTeams(updatedTeams);
-      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      const updatedUser = await getUserInfo();
+      setUser(updatedUser);
       if (selectedTeam?.id === teamId) {
         setSelectedTeam(null);
         setShowTeamMembersModal(false);
@@ -280,7 +283,8 @@ const handleSearchId = (e) => {
       await deleteTeam(teamId);
       const updatedTeams = await getUserTeams();
       setTeams(updatedTeams);
-      setUser(prev => ({ ...prev, teamNames: updatedTeams.map(t => t.name) }));
+      const updatedUser = await getUserInfo();
+      setUser(updatedUser);
       if (selectedTeam?.id === teamId) {
         setSelectedTeam(null);
         setShowTeamMembersModal(false);

@@ -8,7 +8,7 @@ import com.review.reviewservice.exceptions.TeamAlreadyExistsException;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.service.TeamService;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.AllArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -18,17 +18,13 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@AllArgsConstructor
 @RestController
 @RequestMapping("/api/teams")
 public class TeamController {
 
     private final TeamService teamService;
     private static final String USERNAME_KEY = "username";
-
-    @Autowired
-    public TeamController(TeamService teamService) {
-        this.teamService = teamService;
-    }
 
     @GetMapping
     public ResponseEntity<List<TeamDto>> getMyTeams(
