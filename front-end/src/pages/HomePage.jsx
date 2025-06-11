@@ -34,7 +34,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    // Apply theme to body to ensure global consistency
     document.body.className = theme === 'light' ? 'bg-white text-black' : 'bg-black text-white';
   }, [theme]);
 
@@ -75,7 +74,6 @@ export default function HomePage() {
 
   return (
     <div className={`relative min-h-screen ${theme === 'light' ? 'bg-white text-black' : 'bg-black text-white'} overflow-hidden font-['Gabarito']`}>
-      {/* Animated Background (only for dark theme) */}
       {theme === 'dark' && (
         <div className="absolute inset-0 z-0 opacity-30">
           <div className="absolute inset-0 bg-gradient-to-br from-purple-900 via-indigo-900 to-blue-900 animate-gradient-x"></div>
@@ -83,12 +81,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Navigation */}
       <nav className={`relative z-50 px-4 sm:px-8 py-4 sm:py-6 flex justify-between items-center`}>
         <Link to="/" className={`text-2xl sm:text-3xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform`}>
           Code Review Hub
         </Link>
-        {/* Desktop Navbar */}
         <div className="hidden sm:flex items-center space-x-6">
           <div className="flex space-x-2">
             <button
@@ -136,16 +132,22 @@ export default function HomePage() {
             </>
           )}
         </div>
-        {/* Mobile Burger Button */}
         <button className="sm:hidden p-2" onClick={toggleMenu}>
           {menuOpen ? <X size={24} className={theme === 'light' ? 'text-black' : 'text-white'} /> : <Menu size={24} className={theme === 'light' ? 'text-black' : 'text-white'} />}
         </button>
       </nav>
 
       {/* Mobile Burger Menu */}
-      {menuOpen && (
-        <div className={`sm:hidden relative z-50 ${theme === 'light' ? 'bg-white/90' : 'bg-black/90'} px-4 py-4 border-t border-${theme === 'light' ? 'black/10' : 'white/10'}`}>
-          <div className="flex flex-col space-y-4">
+      <div
+        className={`sm:hidden fixed top-0 right-0 h-full w-64 z-50 ${theme === 'light' ? 'bg-white/95' : 'bg-black/95'} backdrop-blur-lg transform transition-all duration-300 ease-in-out ${
+          menuOpen ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
+        }`}
+      >
+        <div className="flex flex-col h-full px-4 py-6 space-y-6">
+          <button className="self-end p-2" onClick={toggleMenu}>
+            <X size={24} className={theme === 'light' ? 'text-black' : 'text-white'} />
+          </button>
+          <div className="flex flex-col space-y-4 flex-grow">
             <div className="flex justify-center space-x-2">
               <button
                 onClick={() => handleThemeToggle('light')}
@@ -193,6 +195,16 @@ export default function HomePage() {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Overlay pentru fundal când meniul este deschis */}
+      {menuOpen && (
+        <div
+          className={`sm:hidden fixed inset-0 bg-black/50 z-40 transition-opacity duration-300 ease-in-out ${
+            menuOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+          onClick={toggleMenu}
+        ></div>
       )}
 
       {/* Hero Section */}

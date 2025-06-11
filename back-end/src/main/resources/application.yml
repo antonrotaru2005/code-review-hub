@@ -25,14 +25,14 @@ spring:
             client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_BITBUCKET_LOGIN_CLIENT_SECRET}
             scope: account,repository,pullrequest,email
             authorization-grant-type: authorization_code
-            redirect-uri: http://localhost:8080/login/oauth2/code/bitbucket-login
+            redirect-uri: ${LOGIN_REDIRECT_URL}
           bitbucket-signup:
             provider: bitbucket
             client-id: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_BITBUCKET_SIGNUP_CLIENT_ID}
             client-secret: ${SPRING_SECURITY_OAUTH2_CLIENT_REGISTRATION_BITBUCKET_SIGNUP_CLIENT_SECRET}
             scope: account,repository,pullrequest,email
             authorization-grant-type: authorization_code
-            redirect-uri: http://localhost:8080/login/oauth2/code/bitbucket-signup
+            redirect-uri: ${SIGNUP_REDIRECT_URL}
 
         provider:
           bitbucket:
