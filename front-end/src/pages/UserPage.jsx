@@ -6,7 +6,7 @@ import { getUserInfo, getUserFeedbacks, enableWebhookToken, disableWebhookToken,
 import { sendChat } from '../api/chat';
 import { Link, useNavigate } from 'react-router-dom';
 import { FaRobot, FaCaretDown, FaSun, FaMoon, FaCheckCircle, FaChevronDown, FaChevronUp, FaUsers, FaPlus, FaSignInAlt, FaSignOutAlt, FaTrash } from 'react-icons/fa';
-import { DropdownButton, Dropdown, Spinner, Alert, Modal, Button } from 'react-bootstrap';
+import { DropdownButton, Dropdown, Spinner, Alert, Modal } from 'react-bootstrap';
 import Switch from 'react-switch';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
@@ -54,9 +54,11 @@ export default function UserPage() {
   const [teamMembers, setTeamMembers] = useState([]);
   const [newTeamPassword, setNewTeamPassword] = useState('');
   const [joinTeamPassword, setJoinTeamPassword] = useState('');
+  const [isTeamManagementCollapsed, setIsTeamManagementCollapsed] = useState(false);
   const feedbackRefs = useRef({});
   const aspectsDropdownRef = useRef(null);
   const teamDropdownRef = useRef(null);
+  const teamManagementRef = useRef(null);
   const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
@@ -121,6 +123,11 @@ export default function UserPage() {
     }));
   };
 
+  // Toggle the collapse state for the Team Management card
+  const toggleTeamManagement = () => {
+    setIsTeamManagementCollapsed(!isTeamManagementCollapsed);
+  };
+
   // Handle aspect selection
   const handleAspectChange = async (aspect) => {
     let updatedAspects;
@@ -158,27 +165,28 @@ export default function UserPage() {
   };
 
   // Handle search by PR ID
-  const handleSearchId = (e) => {
-    const value = e.target.value.replace(/[^0-9]/g, '');
-    setSearchId(value);
+  // Înlocuiește funcția handleSearchId existentă cu aceasta:
+const handleSearchId = (e) => {
+  const value = e.target.value.replace(/[^0-9]/g, '');
+  setSearchId(value); // Corectat de la setbxId la setSearchId
 
-    if (!value) {
-      setFeedbacks(allFeedbacks);
-      return;
-    }
+  if (!value) {
+    setFeedbacks(allFeedbacks);
+    return;
+  }
 
-    const searchNum = parseInt(value, 10);
-    if (isNaN(searchNum)) {
-      setFeedbacks(allFeedbacks);
-      return;
-    }
+  const searchNum = parseInt(value, 10);
+  if (isNaN(searchNum)) {
+    setFeedbacks(allFeedbacks);
+    return;
+  }
 
-    const filteredFeedbacks = allFeedbacks.filter(fb =>
-      fb.prId === searchNum &&
-      (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
-    );
-    setFeedbacks(filteredFeedbacks);
-  };
+  const filteredFeedbacks = allFeedbacks.filter(fb =>
+    fb.prId === searchNum &&
+    (selectedRepo === 'all' || fb.repoFullName === selectedRepo)
+  );
+  setFeedbacks(filteredFeedbacks);
+};
 
   // Handle team creation
   const handleCreateTeam = async () => {
@@ -492,7 +500,7 @@ export default function UserPage() {
     return () => client.deactivate();
   }, [user, error, loading, webhookEnabled, searchId, selectedRepo]);
 
-  // Update feedback content heights for animation
+  // Update feedback and team management content heights for animation
   useEffect(() => {
     Object.keys(feedbackRefs.current).forEach(id => {
       const el = feedbackRefs.current[id];
@@ -502,7 +510,13 @@ export default function UserPage() {
           : `${el.scrollHeight}px`;
       }
     });
-  }, [collapsedFeedbacks, feedbacks]);
+    const teamEl = teamManagementRef.current;
+    if (teamEl) {
+      teamEl.style.maxHeight = isTeamManagementCollapsed
+        ? '0px'
+        : `${teamEl.scrollHeight}px`;
+    }
+  }, [collapsedFeedbacks, feedbacks, isTeamManagementCollapsed]);
 
   const handleWebhookToggle = async (checked) => {
     try {
@@ -690,7 +704,6 @@ export default function UserPage() {
         </div>  
       )}
 
-
       {/* Navbar */}
       <nav className={`relative z-50 px-6 py-4 flex justify-between items-center`}>
         <Link to="/" className={`text-2xl font-bold ${theme === 'light' ? 'text-black' : 'text-white'} tracking-wider hover:scale-105 transition-transform no-underline`}>
@@ -790,115 +803,133 @@ export default function UserPage() {
               )}
             </div>
 
-            <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6 flex flex-col`}>
-              <h4 className={`text-lg font-semibold mb-4 text-${theme === 'light' ? 'black' : 'white'} text-center`}>
-                Team Management
-              </h4>
-              <div className="mb-4">
-                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Your Teams</h5>
-                {teams.length === 0 ? (
-                  <p className={`text-sm text-${theme === 'light' ? 'black/70' : 'white/70'}`}>No teams joined.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {teams.map(team => (
-                      <div key={team.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <FaUsers className={`text-${theme === 'light' ? 'blue-600' : 'purple-600'}`} />
-                          <div className="flex items-center gap-1">
-                            <span 
-                              className={`text-sm cursor-pointer ${theme === 'light' ? 'text-black hover:text-blue-600' : 'text-white hover:text-purple-600'}`} 
-                              onClick={() => handleViewTeamMembers(team)}
-                            >
-                              {team.name}
-                            </span>
-                            {team.createdByUsername === user.username && (
-                              <span className={`text-xs px-1.5 py-0.5 rounded ${theme === 'light' ? 'bg-green-500 text-white' : 'bg-green-600 text-white'} ml-1`}>
-                                Admin
+              <div className={`relative rounded-2xl border border-${theme === 'light' ? 'black/10' : 'white/10'} ${theme === 'light' ? 'bg-white/80' : 'bg-transparent from-purple-900/60 via-indigo-900/60 to-blue-900/60'} backdrop-blur-md shadow-xl p-6`}>
+                <div className="flex items-center justify-between">
+                  <div >
+                    <h4 className={`text-lg font-semibold text-${theme === 'light' ? 'black' : 'white'} leading-none team-management-title`}>
+                      Team Management
+                    </h4>
+                  </div>
+                  <button
+                    onClick={toggleTeamManagement}
+                    className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                    aria-label={isTeamManagementCollapsed ? 'Expand Team Management' : 'Collapse Team Management'}
+                    aria-expanded={!isTeamManagementCollapsed}
+                  >
+                    {isTeamManagementCollapsed ? <FaChevronDown /> : <FaChevronUp />}
+                  </button>
+                </div>
+                <div
+                  ref={teamManagementRef}
+                  className={`overflow-hidden transition-all duration-300 ease-in-out`}
+                  style={{ maxHeight: isTeamManagementCollapsed ? '0px' : teamManagementRef.current?.scrollHeight || 'auto' }}
+                >
+                <div className="mt-4">
+                  <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Your Teams</h5>
+                  {teams.length === 0 ? (
+                    <p className={`text-sm text-${theme === 'light' ? 'black/70' : 'white/70'}`}>No teams joined.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {teams.map(team => (
+                        <div key={team.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <FaUsers className={`text-${theme === 'light' ? 'blue-600' : 'purple-600'}`} />
+                            <div className="flex items-center gap-1">
+                              <span 
+                                className={`text-sm cursor-pointer ${theme === 'light' ? 'text-black hover:text-blue-600' : 'text-white hover:text-purple-600'}`} 
+                                onClick={() => handleViewTeamMembers(team)}
+                              >
+                                {team.name}
                               </span>
+                              {team.createdByUsername === user.username && (
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${theme === 'light' ? 'bg-green-500 text-white' : 'bg-green-600 text-white'} ml-1`}>
+                                  Admin
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleLeaveTeam(team.id)}
+                              className={`text-sm ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                              title="Leave Team"
+                            >
+                              <FaSignOutAlt />
+                            </button>
+                            {team.createdByUsername === user.username && (
+                              <button
+                                onClick={() => handleDeleteTeam(team.id)}
+                                className={`text-sm ${theme === 'light' ? 'text-red-600 hover:text-red-500' : 'text-red-400 hover:text-red-300'}`}
+                                title="Delete Team"
+                              >
+                                <FaTrash />
+                              </button>
                             )}
                           </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => handleLeaveTeam(team.id)}
-                            className={`text-sm ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
-                            title="Leave Team"
-                          >
-                            <FaSignOutAlt />
-                          </button>
-                          {team.createdByUsername === user.username && (
-                            <button
-                              onClick={() => handleDeleteTeam(team.id)}
-                              className={`text-sm ${theme === 'light' ? 'text-red-600 hover:text-red-500' : 'text-red-400 hover:text-red-300'}`}
-                              title="Delete Team"
-                            >
-                              <FaTrash />
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-              <div className="mb-4">
-                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Create Team</h5>
-                <div className="flex flex-row gap-2 team-input-group">
-                  <div className="flex flex-col gap-2 flex-1">
-                    <input
-                      type="text"
-                      placeholder="Team name"
-                      value={newTeamName}
-                      onChange={(e) => setNewTeamName(e.target.value)}
-                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                    />
-                    <input
-                      type="password"
-                      placeholder="Team password"
-                      value={newTeamPassword}
-                      onChange={(e) => setNewTeamPassword(e.target.value)}
-                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                    />
-                  </div>
-                  <button
-                    onClick={handleCreateTeam}
-                    className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
-                  >
-                    <div className="flex flex-col items-center">
-                      <FaPlus className="mb-1" />
-                      <span>Create</span>
+                      ))}
                     </div>
-                  </button>
+                  )}
                 </div>
-              </div>
-              <div>
-                <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Join Team</h5>
-                <div className="flex flex-row gap-2 team-input-group">
-                  <div className="flex flex-col gap-2 flex-1">
-                    <input
-                      type="text"
-                      placeholder="Team ID"
-                      value={joinTeamId}
-                      onChange={(e) => setJoinTeamId(e.target.value.replace(/[^0-9]/g, ''))}
-                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                    />
-                    <input
-                      type="password"
-                      placeholder="Team password"
-                      value={joinTeamPassword}
-                      onChange={(e) => setJoinTeamPassword(e.target.value)}
-                      className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
-                    />
-                  </div>
-                  <button
-                    onClick={handleJoinTeam}
-                    className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
-                  >
-                    <div className="flex flex-col items-center">
-                      <FaSignInAlt className="mb-1" />
-                      <span>Join</span>
+                <div className="mb-4 mt-4">
+                  <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Create Team</h5>
+                  <div className="flex flex-row gap-2 team-input-group">
+                    <div className="flex flex-col gap-2 flex-1">
+                      <input
+                        type="text"
+                        placeholder="Team name"
+                        value={newTeamName}
+                        onChange={(e) => setNewTeamName(e.target.value)}
+                        className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Team password"
+                        value={newTeamPassword}
+                        onChange={(e) => setNewTeamPassword(e.target.value)}
+                        className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                      />
                     </div>
-                  </button>
+                    <button
+                      onClick={handleCreateTeam}
+                      className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
+                    >
+                      <div className="flex flex-col items-center">
+                        <FaPlus className="mb-1" />
+                        <span>Create</span>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+                <div>
+                  <h5 className={`text-sm font-medium mb-2 text-${theme === 'light' ? 'black' : 'white'}`}>Join Team</h5>
+                  <div className="flex flex-row gap-2 team-input-group">
+                    <div className="flex flex-col gap-2 flex-1">
+                      <input
+                        type="text"
+                        placeholder="Team ID"
+                        value={joinTeamId}
+                        onChange={(e) => setJoinTeamId(e.target.value.replace(/[^0-9]/g, ''))}
+                        className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                      />
+                      <input
+                        type="password"
+                        placeholder="Team password"
+                        value={joinTeamPassword}
+                        onChange={(e) => setJoinTeamPassword(e.target.value)}
+                        className={`w-full px-2 py-1 h-8 text-sm border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+                      />
+                    </div>
+                    <button
+                      onClick={handleJoinTeam}
+                      className={`w-20 h-[72px] text-sm ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'} rounded flex items-center justify-center team-button`}
+                    >
+                      <div className="flex flex-col items-center">
+                        <FaSignInAlt className="mb-1" />
+                        <span>Join</span>
+                      </div>
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -979,7 +1010,7 @@ export default function UserPage() {
           <div className="lg:col-span-3">
             <div className="flex flex-col lg:flex-row justify-between items-center mb-6 gap-4">
               <div className="flex items-center gap-4">
-                <h2 className="text-2xl font-bold">Your AI Feedbacks 🧠</h2>
+                <h2 className="text-2xl font-bold feedback-header">Your AI Feedbacks 🧠</h2>
                 <input
                   type="text"
                   placeholder="Search by ID"
@@ -1083,13 +1114,31 @@ export default function UserPage() {
                         {items.map(fb => (
                           <div key={fb.id} className={`bg-${theme === 'light' ? 'white/60' : 'black/60'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-2xl p-4`}>
                             <div className="flex items-center justify-between">
-                              <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mb-2 feedback-title truncate`}>
-                                Pull Request #{fb.prId} – {fb.model}
-                              </h5>
-                              <div className="flex items-center">
-                                <span className={`text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'} ml-2 feedback-repo truncate`}>
+                             <div className="feedback-header-container flex items-center justify-between">
+                                {/* VARIANTA DESKTOP */}
+                                <span
+                                  className={`desktop-title font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} feedback-title truncate`}
+                                >
+                                  Pull Request #{fb.prId} – {fb.model}
+                                </span>
+
+                                {/* VARIANTA MOBILE (ascunsă implicit pe desktop) */}
+                                <div className="mobile-title-container flex flex-col items-start">
+                                  <span className={`mobile-title font-semibold ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} truncate`}>
+                                    PR #{fb.prId}
+                                  </span>
+                                  {/* Aici poți lăsa modelul (– {fb.model}) sau să-l muți într-un rând secundar */}
+                                  <span className={`mobile-model text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'} truncate`}>
+                                    – {fb.model}
+                                  </span>
+                                </div>
+
+                                {/* REPOSITORY – de la început, plasat într-un span separat */}
+                                <span className={`feedback-repo text-sm ${theme === 'light' ? 'text-gray-500' : 'text-gray-400'} ml-2 truncate`}>
                                   {fb.repoFullName}
                                 </span>
+
+                                {/* Butonul de collapse/rândul cu iconiță */}
                                 <button
                                   onClick={() => toggleCollapse(fb.id)}
                                   className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
@@ -1189,19 +1238,19 @@ export default function UserPage() {
         </Modal.Body>
       </Modal>
 
-
+      {/* Chat Button */}
       <button
-        className={`fixed bottom-5 right-5 w-14 h-14 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} flex items-center justify-center shadow-lg z-50`}
+        className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-xl z-50 transition-all duration-200 hover:scale-110`}
         onClick={() => setChatOpen(!chatOpen)}
-        title="Chat with AI"
+        title="Chat with AI Assistant"
       >
-        <FaRobot size={24} className="text-white" />
+        <FaRobot size={28} />
       </button>
 
       {chatOpen && (
         <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
-          <div className={`bg-${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white px-4 py-2 flex justify-between items-center`}>
-            <span>AI Assistant</span>
+          <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
+            <span className="font-semibold">AI Assistant</span>
             <button onClick={() => setChatOpen(false)}>✕</button>
           </div>
           <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'}`}>
@@ -1256,167 +1305,329 @@ export default function UserPage() {
         </div>
       </footer>
 
-      <style jsx global>{`
-        @keyframes gradient-x {
-          0%, 100% { background-position: 0% 50%; }
-          50% { background-position: 100% 50%; }
-        }
-        .animate-gradient-x {
-          background-size: 200% 200%;
-          animation: gradient-x 15s ease infinite;
-        }
-        @keyframes spin {
-          to { transform: rotate(360deg); }
-        }
-        .animate-spin {
-          animation: spin 1s linear infinite;
-        }
-        @keyframes fade-in {
-          0% { opacity: 0; margin-top: -10px; }
-          100% { opacity: 1; margin-top: 0; }
-        }
-        .animate-fade-in {
-          animation: fade-in 0.3s ease-out;
-          will-change: opacity, margin-top;
-        }
-        @keyframes modal-slide-in {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
-        }
-        .team-members-modal .modal-dialog {
-          max-width: 500px;
-          animation: modal-slide-in 0.3s ease-out;
-        }
-        .team-members-modal-header {
-          display: flex;
-          justify-content: space-between;
-          align-items: center;
-          padding: 1.5rem 2rem;
-          border-radius: 1rem 1rem 0 0;
-        }
-        .team-members-modal-close {
-          background: none;
-          border: none;
-          font-size: 1.25rem;
-          line-height: 1;
-          cursor: pointer;
-          transition: color 0.2s ease;
-        }
-        .team-members-modal-body {
-          padding: 2rem;
-        }
-        .team-member-card {
-          cursor: default;
-        }
-        .team-members-modal-footer {
-          padding: 1.5rem 2rem;
-          border-radius: 0 0 1rem 1rem;
-          display: flex;
-          justify-content: flex-end;
-        }
-        .team-members-modal-button {
-          box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-        }
-        .team-members-modal-button:hover {
-          box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-        }
-        .ai-dropdown .btn {
-          background-color: transparent;
-          border-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)'};
-          color: ${theme === 'light' ? 'black' : 'white'};
-          padding: 0.5rem 1rem;
-          font-size: 1rem;
-          line-height: 1.5rem;
-          height: 2.5rem;
-          width: 100%;
-          text-align: left;
-          position: relative;
-          padding-right: 2.5rem;
-        }
-        .ai-dropdown .btn:hover {
-          background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
-        }
-        .ai-dropdown .dropdown-menu {
-          background-color: ${theme === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'};
-          border: 1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
-          font-size: 0.875rem;
-          width: auto;
-          min-width: 100%;
-          max-width: 500px;
-          z-index: 60;
-        }
-        .ai-dropdown .dropdown-item {
-          color: ${theme === 'light' ? 'black' : 'white'};
-          padding: 0.5rem 1rem;
-          white-space: normal;
-          word-break: break-word;
-        }
-        .ai-dropdown .dropdown-item:hover {
-          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
-        }
-        .ai-dropdown .dropdown-item.active {
-          background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
-        }
-        #repo-dropdown {
-          display: inline-flex;
-          align-items: center;
-          max-width: 220px;
-          padding: 0.375rem 0.75rem;
-          font-size: 0.875rem;
-          white-space: nowrap;
-          overflow: hidden;
-          text-overflow: ellipsis;
-        }
-        #repo-dropdown .btn {
-          display: inline-block;
-          width: auto;
-          min-width: 100px;
-          max-width: 100px;
-          padding: 0.5rem 1rem;
-        }
-        #repo-dropdown .dropdown-menu {
-          min-width: 220px;
-          max-width: 280px;
-          white-space: normal;
-          word-break: break-word;
-          z-index: 70;
-        }
-        .repo-dropdown-wrapper {
-          display: inline-block;
-          width: auto;
-          max-width: 200px;
-        }
-        .aspects-dropdown-list {
-          z-index: 1000;
-        }
-        .team-input-group {
-          align-items: flex-start;
-        }
-        .team-button {
-          width: 80px;
-          height: 72px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-        @media (max-width: 640px) {
-          .team-input-group {
-            flex-direction: column;
-            align-items: stretch;
-          }
-          .team-button {
-            width: 100%;
-            height: 40px;
-            margin-top: 0.5rem;
-          }
-          .team-input-group > div {
-            width: 100%;
-          }
-          .team-input-group input {
-            width: 100%;
-          }
-        }
-      `}</style>
+<style jsx global>{`
+  @keyframes gradient-x {
+    0%, 100% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+  }
+  .animate-gradient-x {
+    background-size: 200% 200%;
+    animation: gradient-x 15s ease infinite;
+  }
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  .animate-spin {
+    animation: spin 1s linear infinite;
+  }
+  @keyframes fade-in {
+    0% { opacity: 0; margin-top: -10px; }
+    100% { opacity: 1; margin-top: 0; }
+  }
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out;
+    will-change: opacity, margin-top;
+  }
+  @keyframes slide-toggle {
+    0% { max-height: 0; opacity: 0; }
+    100% { max-height: var(--target-height); opacity: 1; }
+  }
+  .team-management-content {
+    animation: slide-toggle 0.3s ease-in-out forwards;
+  }
+  @keyframes modal-slide-in {
+    0% { opacity: 0; transform: translateY(20px); }
+    100% { opacity: 1; transform: translateY(0); }
+  }
+  .team-members-modal .modal-dialog {
+    max-width: 500px;
+    animation: modal-slide-in 0.3s ease-out;
+  }
+  .team-members-modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1.5rem 2rem;
+    border-radius: 1rem 1rem 0 0;
+  }
+  .team-members-modal-close {
+    background: none;
+    border: none;
+    font-size: 1.25rem;
+    line-height: 1;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+  .team-members-modal-body {
+    padding: 2rem;
+  }
+  .team-member-card {
+    cursor: default;
+  }
+  .team-members-modal-footer {
+    padding: 1.5rem 2rem;
+    border-radius: 0 0 1rem 1rem;
+    display: flex;
+    justify-content: flex-end;
+  }
+  .team-members-modal-button {
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  }
+  .team-members-modal-button:hover {
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  }
+  .ai-dropdown .btn {
+    background-color: transparent;
+    border-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)'};
+    color: ${theme === 'light' ? 'black' : 'white'};
+    padding: 0.5rem 1rem;
+    font-size: 1rem;
+    line-height: 1.5rem;
+    height: 2.5rem;
+    width: 100%;
+    text-align: left;
+    position: relative;
+    padding-right: 2.5rem;
+  }
+  .ai-dropdown .btn:hover {
+    background-color: ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
+  }
+  .ai-dropdown .dropdown-menu {
+    background-color: ${theme === 'light' ? 'rgba(255, 255, 255, 0.9)' : 'rgba(0, 0, 0, 0.8)'};
+    border: 1px solid ${theme === 'light' ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)'};
+    font-size: 0.875rem;
+    width: auto;
+    min-width: 100%;
+    max-width: 500px;
+    z-index: 60;
+  }
+  .ai-dropdown .dropdown-item {
+    color: ${theme === 'light' ? 'black' : 'white'};
+    padding: 0.5rem 1rem;
+    white-space: normal;
+    word-break: break-word;
+  }
+  .ai-dropdown .dropdown-item:hover {
+    background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.5)' : 'rgba(147, 51, 234, 0.5)'};
+  }
+  .ai-dropdown .dropdown-item.active {
+    background-color: ${theme === 'light' ? 'rgba(59, 130, 246, 0.7)' : 'rgba(147, 51, 234, 0.7)'};
+  }
+  #repo-dropdown {
+    display: inline-flex;
+    align-items: center;
+    max-width: 220px;
+    padding: 0.375rem 0.75rem;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  #repo-dropdown .btn {
+    display: inline-block;
+    width: auto;
+    min-width: 100px;
+    max-width: 100px;
+    padding: 0.5rem 1rem;
+  }
+  #repo-dropdown .dropdown-menu {
+    min-width: 220px;
+    max-width: 280px;
+    white-space: normal;
+    word-break: break-word;
+    z-index: 70;
+  }
+  .repo-dropdown-wrapper {
+    display: inline-block;
+    width: auto;
+    max-width: 200px;
+  }
+  .aspects-dropdown-list {
+    z-index: 1000;
+  }
+  .team-input-group {
+    align-items: flex-start;
+  }
+  .team-button {
+    width: 80px;
+    height: 72px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+
+  /*RESPONSIVE*/
+
+/* Tablet (768px) */
+@media (max-width: 768px) {
+  /* Ajustări fereastră AI Assistant */
+  div[class*="fixed bottom-24 right-5 wquestrian-80 h-96"] {
+    width: 70vw !important;
+    height: 70vh !important;
+    max-width: 500px;
+    max-height: 400px;
+    right: 1rem !important;
+    bottom: 5rem !important;
+  }
+}
+
+/* Desktop și Tablet (≥768px) */
+@media (min-width: 768px) {
+  .feedback-header-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    position: relative;
+    padding-right: 0; /* nu e nevoie de spațiu extra */
+  }
+  .desktop-title {
+    font-size: 1.25rem;
+    display: inline; /* titlu desktop vizibil */
+  }
+  .mobile-title-container {
+    display: none;  /* ascuns pe desktop */
+  }
+  .feedback-repo {
+    font-size: 1rem;
+    margin-left: 0;
+    margin-right: 1rem;
+    order: 2; /* apare între titlu și buton */
+  }
+  .feedback-header-container > button {
+    order: 3;
+    position: static;
+    margin-left: 0;
+  }
+}
+
+/* Mobile (≤576px) – orice mobil, inclusiv L/M/S/XS */
+@media (max-width: 576px) {
+  /* Ajustări fereastră AI Assistant */
+  div[class*="fixed bottom-24 right-5 w-80 h-96"] {
+    width: 90vw !important;
+    height: 60vh !important;
+    max-width: 380px;
+    max-height: 350px;
+    right: 0.5rem !important;
+    bottom: 4.5rem !important;
+  }
+
+  /* Container header: mutăm în column, pentru a lăsa spațiu butonului poziționat absolut */
+  .feedback-header-container {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+    position: relative;       /* pentru button: absolute */
+    padding-right: 2.5rem;    /* spațiu pentru butonul plasat absolut în dreapta */
+  }
+
+  /* Titlu desktop invizibil, folosim doar varianta mobile */
+  .desktop-title {
+    display: none !important;
+  }
+
+  /* Container titlu mobil: arată “PR #123 – model” pe un singur rând */
+  .mobile-title-container {
+    display: flex !important;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 1.25rem;
+    line-height: 1.3;
+    order: 1;
+    width: 100%;        /* ocupă toată lățimea rămasă */
+    white-space: nowrap;
+  }
+  /* Dacă vrei să afișezi “PR #123” și “– model” într-o singură linie, asigură-te că .mobile-model e pe același rând */
+  .mobile-model {
+    font-size: 1rem;
+    color: var(--text-secondary);
+  }
+
+  /* Butonul de toggle: poziționat absolut în colțul dreapta-sus al containerului */
+  .feedback-header-container > button {
+    position: absolute;
+    top: 0;
+    right: 0;
+    order: 2;
+    flex-shrink: 0;
+    background: none; /* păstrează stilul tău actual */
+  }
+
+  /* Numele repo pe rând nou, font-size mai mic */
+  .feedback-repo {
+    display: block;
+    order: 3;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+/* Mobile S/M (≤375px) */
+@media (max-width: 375px) {
+  /* Ajustări fereastră AI Assistant */
+  div[class*="fixed bottom-24 right-5 w-80 h-96"] {
+    width: 92vw !important;
+    max-width: 340px;
+    max-height: 320px;
+  }
+
+  .feedback-header-container {
+    padding-right: 2.5rem;  /* spațiu buton */
+  }
+
+  .mobile-title-container {
+    font-size: 1.125rem;
+  }
+  .mobile-model {
+    font-size: 0.875rem;
+  }
+  .feedback-repo {
+    font-size: 0.75rem;
+  }
+}
+
+/* Mobile XS (≤320px) */
+@media (max-width: 320px) {
+  /* Ajustări fereastră AI Assistant */
+  div[class*="fixed bottom-24 right-5 w-80 h-96"] {
+    width: 95vw !important;
+    max-width: 300px;
+    max-height: 300px;
+  }
+
+  .feedback-header-container {
+    padding-right: 2.5rem;
+  }
+
+  .mobile-title-container {
+    font-size: 1rem;
+  }
+  .mobile-model {
+    font-size: 0.75rem;
+  }
+  .feedback-repo {
+    font-size: 0.75rem;
+  }
+}
+
+/* Implicit (desktop) */
+.mobile-title-container {
+  display: none;
+}
+.desktop-title {
+  display: inline;
+}
+
+`}</style>
     </div>
   );
 }
