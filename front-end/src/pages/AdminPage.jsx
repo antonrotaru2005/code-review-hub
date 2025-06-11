@@ -427,56 +427,56 @@ export default function AdminPage() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           {/* Sidebar */}
           <div className="md:col-span-1 space-y-8">
-            <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+            <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-4 md:p-6 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
               {isSuperAdmin && (
-                <div className="mb-4 flex gap-4">
+                <div className="mb-4 flex flex-col md:flex-row gap-2 sidebar-buttons-container">
                   <button
-                    className={`px-4 py-2 rounded-full ${viewMode === 'users' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')}`}
+                    className={`px-4 py-2 rounded-full text-base ${viewMode === 'users' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')} flex-1`}
                     onClick={() => setViewMode('users')}
                   >
                     All Users
                   </button>
                   <button
-                    className={`px-4 py-2 rounded-full ${viewMode === 'teams' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')}`}
+                    className={`px-4 py-2 rounded-full text-base ${viewMode === 'teams' ? (theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white') : (theme === 'light' ? 'bg-gray-200' : 'bg-gray-700')} flex-1`}
                     onClick={() => setViewMode('teams')}
                   >
                     All Teams
                   </button>
                 </div>
               )}
-              <h5 className={`mb-4 text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>{viewMode === 'users' ? 'All Users' : 'All Teams'}</h5>
+              <h5 className={`mb-4 text-lg md:text-xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'} sidebar-title`}>{viewMode === 'users' ? 'All Users' : 'All Teams'}</h5>
               <div className="space-y-3">
                 {viewMode === 'users' ? (
                   users.map((u) => (
                     <div
                       key={u.username}
-                      className={`p-3 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
+                      className={`p-3 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200 sidebar-user-item`}
                       onClick={() => handleUserSelect(u)}
                     >
                       {u.avatar ? (
                         <img
                           src={u.avatar}
                           alt="Avatar"
-                          className="w-10 h-10 rounded-full object-cover mr-3"
+                          className="w-8 md:w-10 h-8 md:h-10 rounded-full object-cover mr-3"
                         />
                       ) : (
-                        <div className={`w-10 h-10 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-3 text-lg`}>
+                        <div className={`w-8 md:w-10 h-8 md:h-10 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-3 text-sm md:text-lg`}>
                           {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                         </div>
                       )}
-                      <span className={`text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                      <span className={`text-base md:text-lg ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
                     </div>
                   ))
                 ) : (
                   teams.map((team) => (
                     <div key={team.id}>
                       <div
-                        className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40'} transition-all duration-200`}
+                        className={`p-3 rounded-xl cursor-pointer flex items-center justify-between ${theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40'} transition-all duration-200 sidebar-team-item`}
                         onClick={() => toggleTeamExpand(team.id)}
                       >
-                        <span className={`text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>
-                            ID: {team.id} | {team.name}
-                          </span>
+                        <span className={`text-base md:text-lg font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>
+                          ID: {team.id} | {team.name}
+                        </span>
                         {expandedTeams[team.id] ? (
                           <FaChevronUp className={theme === 'light' ? 'text-black' : 'text-white'} />
                         ) : (
@@ -484,25 +484,25 @@ export default function AdminPage() {
                         )}
                       </div>
                       {expandedTeams[team.id] && teamMembers[team.id] && (
-                        <div className="ml-6 mt-2 space-y-2">
+                        <div className="ml-4 md:ml-6 mt-2 space-y-2">
                           {teamMembers[team.id].map((u) => (
                             <div
                               key={u.username}
-                              className={`p-2 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200`}
+                              className={`p-2 rounded-xl cursor-pointer flex items-center ${selectedUser?.username === u.username ? (theme === 'light' ? 'bg-blue-100/50' : 'bg-purple-600/30') : (theme === 'light' ? 'hover:bg-blue-100/40' : 'hover:bg-black/40')} transition-all duration-200 sidebar-team-member-item`}
                               onClick={() => handleUserSelect(u, team.id)}
                             >
                               {u.avatar ? (
                                 <img
                                   src={u.avatar}
                                   alt="Avatar"
-                                  className="w-8 h-8 rounded-full object-cover mr-2"
+                                  className="w-6 md:w-8 h-6 md:h-8 rounded-full object-cover mr-2"
                                 />
                               ) : (
-                                <div className={`w-8 h-8 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-2 text-sm`}>
+                                <div className={`w-6 md:w-8 h-6 md:h-8 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-2 text-xs md:text-sm`}>
                                   {(u.name || u.username)?.[0]?.toUpperCase() || 'U'}
                                 </div>
                               )}
-                              <span className={`text-base ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
+                              <span className={`text-sm md:text-base ${theme === 'light' ? 'text-black' : 'text-white'}`}>{u.name || u.username}</span>
                             </div>
                           ))}
                         </div>
@@ -517,20 +517,20 @@ export default function AdminPage() {
           {/* Main Panel */}
           <div className="md:col-span-3">
             {!selectedUser ? (
-              <div className={`text-center ${theme === 'light' ? 'text-black/60' : 'text-white/60'} mt-12 text-xl`}>
+              <div className={`text-center ${theme === 'light' ? 'text-black/60' : 'text-white/60'} mt-12 text-lg md:text-xl`}>
                 Select a user to view their statistics and latest feedback.
               </div>
             ) : (
               <div>
-                <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 flex items-center shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+                <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 flex items-center shadow-xl transition-all duration-300 hover:shadow-2xl user-info-card`}>
                   {selectedUser.avatar ? (
                     <img
                       src={selectedUser.avatar}
                       alt="Avatar"
-                      className="w-24 h-24 rounded-full object-cover mr-5"
+                      className="w-24 h-24 rounded-full object-cover mr-5 user-avatar"
                     />
                   ) : (
-                    <div className={`w-24 h-24 bg-${theme === 'light' ? 'blue-600' : 'purple-600'} text-white rounded-full flex items-center justify-center mr-5 text-2xl`}>
+                    <div className={`w-24 h-24 bg-${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white rounded-full flex items-center justify-center mr-5 text-2xl user-avatar`}>
                       {(selectedUser.name || selectedUser.username)?.[0]?.toUpperCase() || 'U'}
                     </div>
                   )}
@@ -551,26 +551,40 @@ export default function AdminPage() {
                   <div>
                     <h5 className={`mb-4 text-2xl font-semibold ${theme === 'light' ? 'text-black' : 'text-white'}`}>Latest Feedback</h5>
                     {latestFeedback ? (
-                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-xl transition-all duration-300 hover:shadow-2xl`}>
-                        <div className="flex items-center justify-between">
-                          <h5 className={`font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} mb-3 truncate`}>
-                            PR #{latestFeedback.prId} • {latestFeedback.repoFullName}
-                          </h5>
-                          <div className="flex items-center gap-3">
-                            <button
-                              className={`px-4 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 transition text-base font-medium`}
-                              onClick={() => deleteMemberFeedback(latestFeedback.teamId || null, selectedUser.username, latestFeedback.id).then(() => handleUserSelect(selectedUser, latestFeedback.teamId || null))}
-                            >
-                              Delete
-                            </button>
-                            <button
-                              onClick={toggleCollapse}
-                              className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
-                            >
-                              {collapsedFeedback ? <FaChevronDown size={20} /> : <FaChevronUp size={20} />}
-                            </button>
-                          </div>
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 shadow-xl transition-all duration-300 hover:shadow-2xl latest-feedback-card`}>
+                   <div className="flex flex-col sm:flex-row sm:justify-between feedback-actions">
+                    <div className="flex justify-between items-center w-full">
+                      <div className="feedback-header-container flex flex-col">
+                        <span className={`desktop-title font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} feedback-title truncate`}>
+                          Pull Request #{latestFeedback.prId} – {latestFeedback.repoFullName}
+                        </span>
+                        <div className="mobile-title-container flex flex-col items-start">
+                          <span className={`mobile-title font-semibold ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} truncate`}>
+                            PR #{latestFeedback.prId}
+                          </span>
+                          <span className={`mobile-repo text-sm ${theme === 'light' ? 'text-blue-500' : 'text-purple-400'} truncate`}>
+                            {latestFeedback.repoFullName}
+                          </span>
                         </div>
+                      </div>
+                      <button
+                        onClick={toggleCollapse}
+                        className={`p-2 ${theme === 'light' ? 'text-blue-600 hover:text-blue-500' : 'text-purple-600 hover:text-purple-500'}`}
+                        aria-label={`Toggle feedback for PR ${latestFeedback.prId}`}
+                        aria-expanded={!collapsedFeedback}
+                      >
+                        {collapsedFeedback ? <FaChevronDown size={20} /> : <FaChevronUp size={20} />}
+                      </button>
+                    </div>
+                    <div className="mt-2 sm:mt-0 sm:flex sm:justify-end">
+                      <button
+                        className={`px-4 py-1.5 bg-red-600 text-white rounded-full hover:bg-red-500 transition text-base font-medium max-[576px]:px-3 max-[576px]:py-1 max-[576px]:text-sm feedback-delete-btn`}
+                        onClick={() => deleteMemberFeedback(latestFeedback.teamId || null, selectedUser.username, latestFeedback.id).then(() => handleUserSelect(selectedUser, latestFeedback.teamId || null))}
+                      >
+                        Delete
+                      </button>
+                    </div>
+                  </div>
                         <div
                           className="transition-all duration-300 overflow-hidden"
                           ref={feedbackRef}
@@ -579,7 +593,7 @@ export default function AdminPage() {
                             remarkPlugins={[remarkGfm]}
                             components={{
                               p: ({ className, ...props }) => (
-                                <p className={`text-lg ${theme === 'light' ? 'text-black/90' : 'text-white/90'} mb-2 ${className || ''}`} {...props} />
+                                <p className={`text-sm sm:text-lg ${theme === 'light' ? 'text-black/90' : 'text-white/90'} mb-2 ${className || ''}`} {...props} />
                               ),
                             }}
                           >
@@ -588,7 +602,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                     ) : (
-                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'text-black/60' : 'text-white/60'} text-lg shadow-xl transition-all duration-300 hover:shadow-2xl`}>
+                      <div className={`bg-${theme === 'light' ? 'white/80' : 'transparent'} border border-${theme === 'light' ? 'black/10' : 'white/10'} rounded-3xl p-6 mb-8 ${theme === 'light' ? 'text-black/60' : 'text-white/60'} text-lg shadow-xl transition-all duration-300 hover:shadow-xl`}>
                         No feedback available for this user.
                       </div>
                     )}
@@ -602,12 +616,12 @@ export default function AdminPage() {
                             <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-700' : 'text-purple-200'}`}>{stats.totalFeedbacks}</p>
                           </div>
                           <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-cyan-100' : 'bg-pink-900/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
-                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Avg Comment Length</p>
-                            <p className={`text-2xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{stats.avgCommentLength?.toFixed(2)} chars</p>
+                            <p className={`text-xs md:text-sm ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Avg Comment Length</p>
+                            <p className={`text-base md:text-lg font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{stats.avgCommentLength?.toFixed(2)} chars</p>
                           </div>
                           <div className={`h-24 flex flex-col items-center justify-center ${theme === 'light' ? 'bg-white-100' : 'bg-pink-400/50'} rounded-2xl shadow-lg transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-2`}>
-                            <p className={`text-base ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Last Feedback At</p>
-                            <p className={`text-xl font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</p>
+                            <p className={`text-xs md:text-sm ${theme === 'light' ? 'text-blue-800' : 'text-pink-300'}`}>Last Feedback At</p>
+                            <p className={`text-sm md:text-base font-semibold ${theme === 'light' ? 'text-blue-800' : 'text-pink-200'}`}>{new Date(stats.lastFeedbackAt).toLocaleString()}</p>
                           </div>
                           <div className={`h-56 bg-transparent border ${theme === 'light' ? 'border-gray-300' : 'border-gray-700'} rounded-2xl shadow-lg p-4 pt-8 transition-all duration-200 hover:scale-105 hover:shadow-xl sm:col-span-3`}>
                             <Doughnut data={distinctReposChart} options={distinctReposOptions} />
@@ -629,7 +643,7 @@ export default function AdminPage() {
         </div>
       </main>
 
-      {/* Chat Button */}
+{/* Chat Button */}
       <button
         className={`fixed bottom-6 right-6 w-16 h-16 rounded-full ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex items-center justify-center shadow-xl z-50 transition-all duration-200 hover:scale-110`}
         onClick={() => setChatOpen(!chatOpen)}
@@ -638,47 +652,34 @@ export default function AdminPage() {
         <FaRobot size={28} />
       </button>
 
-      {/* Chat Popup */}
       {chatOpen && (
-        <div className={`fixed bottom-24 right-6 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
+        <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
           <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
             <span className="font-semibold">AI Assistant</span>
             <button onClick={() => setChatOpen(false)}>✕</button>
           </div>
-          <div className={`flex-1 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'} p-4 space-y-2 overflow-y-auto`}>
-            {chatMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={`rounded-lg px-4 py-2 ${msg.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-black' : 'bg-blue-700 text-white') : (theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white')} ${msg.sender === 'user' ? 'ml-auto' : ''}`}
-              >
+          <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'}`}>
+            {chatMessages.map((m, i) => (
+              <div key={i} className={`rounded-lg px-3 py-2 ${m.sender === 'user' ? (theme === 'light' ? 'bg-blue-100 text-right' : 'bg-blue-700 text-right') : (theme === 'light' ? 'bg-white' : 'bg-gray-700')}`}>
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
-                  components={{
-                    p: ({ className, ...props }) => (
-                      <p className={`text-sm ${theme === 'light' ? 'text-black' : 'text-white'} ${className || ''}`} {...props} />
-                    ),
-                  }}
+                  components={{ p: ({ node, ...props }) => <p className={theme === 'light' ? 'text-black' : 'text-white'} {...props} /> }}
                 >
-                  {msg.text}
+                  {m.text}
                 </ReactMarkdown>
               </div>
             ))}
           </div>
-          <div className={`border-t ${theme === 'light' ? 'border-gray-200' : 'border-gray-700'} p-2 flex gap-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
+          <div className={`border-t p-2 flex gap-2 ${theme === 'light' ? 'bg-white' : 'bg-gray-900'}`}>
             <input
               type="text"
-              placeholder="Type your message..."
-              className={`flex-1 px-2 py-1 rounded ${theme === 'light' ? 'bg-white text-black border-gray-300' : 'bg-gray-700 text-white border-gray-600'} border`}
+              className={`flex-1 border border-${theme === 'light' ? 'gray-300' : 'gray-600'} rounded px-2 py-1 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-700 text-white'}`}
+              placeholder="Type a message..."
               value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+              onChange={e => setChatInput(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSend()}
             />
-            <button
-              onClick={handleSend}
-              className={`px-3 py-1 rounded ${theme === 'light' ? 'bg-blue-600 text-white hover:bg-blue-500' : 'bg-purple-600 text-white hover:bg-purple-500'}`}
-            >
-              Send
-            </button>
+            <button onClick={handleSend} className={`px-3 ${theme === 'light' ? 'bg-blue-600 text-white' : 'bg-purple-600 text-white'} rounded`}>Send</button>
           </div>
         </div>
       )}
@@ -705,6 +706,124 @@ export default function AdminPage() {
         }
         .shadow-3xl {
           box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        }
+
+        /* Desktop - Larger font size for PR id and repoFullName */
+        @media (min-width: 1024px) {
+          .latest-feedback-card .desktop-title {
+              font-size: 1.25rem; /* text-xl */
+              display: block;
+            }
+            .latest-feedback-card .mobile-title-container {
+              display: none;
+            }
+          }
+
+          /* Tablet and smaller - Show mobile title, hide desktop title */
+          @media (max-width: 1023px) {
+            .latest-feedback-card .desktop-title {
+              display: none;
+            }
+            .latest-feedback-card .mobile-title-container {
+              display: flex;
+            }
+            .latest-feedback-card .mobile-title,
+            .latest-feedback-card .mobile-repo {
+              font-size: 0.875rem; /* text-sm */
+            }
+            @media (min-width: 768px) {
+              .latest-feedback-card .mobile-title,
+              .latest-feedback-card .mobile-repo {
+                font-size: 1rem; /* text-base */
+              }
+            }
+          }
+
+        /* Tablet - Arrange All Users and All Teams buttons vertically and reduce sidebar font sizes */
+        @media (max-width: 1023px) and (min-width: 768px) {
+          .sidebar-buttons-container {
+            flex-direction: column;
+          }
+
+          .sidebar-buttons-container button {
+            width: 100%;
+            font-size: 0.875rem; /* text-sm */
+          }
+
+          .sidebar-title {
+            font-size: 1rem; /* text-base */
+          }
+
+          .sidebar-user-item,
+          .sidebar-team-item,
+          .sidebar-team-member-item {
+            font-size: 0.875rem; /* text-sm */
+          }
+
+          /* Make AI chat window wider and shorter */
+          .ai-chat-popup {
+            width: 90%;
+            height: 60%;
+          }
+        }
+
+        /* Mobile M (375px) - Smaller text in user info card, smaller AI chat window, smaller Delete button */
+        @media (max-width: 375px) {
+          .feedback-actions {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+          .feedback-actions .flex.items-center {
+            margin-top: 0.5rem; /* Space between PR info and buttons */
+          }
+          .latest-feedback-card .transition-all {
+            margin-top: 1rem; /* Extra space between buttons and expanded feedback text */
+          }
+        }
+
+          .user-info-card p {
+            font-size: 0.875rem; /* text-sm */
+          }
+
+          .ai-chat-popup {
+            width: 85%;
+            height: 50%;
+          }
+
+          .feedback-delete-btn {
+            font-size: 0.75rem; /* text-xs */
+            padding: 0.25rem 0.5rem;
+          }
+        }
+
+        /* Mobile S (320px) - Even smaller text in user info card, smaller AI chat window, Delete button below PR info */
+        @media (max-width: 320px) {
+          .user-info-card h5 {
+            font-size: 0.875rem; /* text-sm */
+          }
+
+          .user-info-card p {
+            font-size: 0.75rem; /* text-xs */
+          }
+
+          .ai-chat-popup {
+            width: 80%;
+            height: 45%;
+          }
+
+          .feedback-delete-btn {
+            font-size: 0.75rem; /* text-xs */
+            padding: 0.25rem 0.5rem;
+          }
+
+          .feedback-actions {
+            flex-direction: column;
+            align-items: flex-start;
+          }
+
+          .feedback-delete-btn {
+            margin-top: 0.5rem;
+          }
         }
       `}</style>
     </div>
