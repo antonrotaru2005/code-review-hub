@@ -1,40 +1,41 @@
 package com.review.reviewservice.service;
 
-import com.review.reviewservice.exceptions.AccessDeniedException;
-import com.review.reviewservice.exceptions.AlreadyMemberException;
-import com.review.reviewservice.exceptions.ResourceNotFoundException;
-import com.review.reviewservice.exceptions.WrongTeamPasswordException;
+import com.review.reviewservice.exceptions.*;
 import com.review.reviewservice.model.entity.Team;
 import com.review.reviewservice.model.entity.User;
 import com.review.reviewservice.model.entity.Role;
 import com.review.reviewservice.model.repository.TeamRepository;
 import com.review.reviewservice.model.repository.UserRepository;
 import com.review.reviewservice.model.repository.RoleRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.review.reviewservice.util.SecurityUtil;
+import lombok.AllArgsConstructor;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.oauth2.client.authentication.OAuth2AuthenticationToken;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 @Service
+@AllArgsConstructor
 public class TeamService {
     private final TeamRepository teamRepository;
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final SecurityUtil securityUtil;
     private static final String USER_NOT_FOUND_PREFIX = "User not found: ";
-
-    @Autowired
-    public TeamService(TeamRepository teamRepository,
-                       UserRepository userRepository,
-                       RoleRepository roleRepository) {
-        this.teamRepository = teamRepository;
-        this.userRepository = userRepository;
-        this.roleRepository = roleRepository;
-    }
+    private static final String ROLE_TEAM_ADMIN = "ROLE_TEAM_ADMIN";
 
     @Transactional
     public Team createTeam(String name, String password, String creatorUsername) {
+        Optional<Team> existing = teamRepository.findByName(name);
+        if (existing.isPresent()) {
+            throw new TeamAlreadyExistsException("A team with this name and password already exists.");
+        }
+
         User creator = userRepository.findByUsername(creatorUsername)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + creatorUsername));
         Team team = new Team();
@@ -44,10 +45,12 @@ public class TeamService {
         team.setPassword(password);
         teamRepository.save(team);
 
-        Role teamAdminRole = roleRepository.findByName("ROLE_TEAM_ADMIN")
+        Role teamAdminRole = roleRepository.findByName(ROLE_TEAM_ADMIN)
                 .orElseThrow(() -> new ResourceNotFoundException("Role not found: ROLE_TEAM_ADMIN"));
         creator.getRoles().add(teamAdminRole);
         userRepository.save(creator);
+
+        reAuthenticate(creatorUsername);
 
         return team;
     }
@@ -81,29 +84,46 @@ public class TeamService {
                     "User " + username + " is not a member of team " + teamId);
         }
 
-        if (team.getCreatedBy().getUsername().equals(username)) {
-            team.getMembers().remove(user);
+        boolean isCreator = team.getCreatedBy().getUsername().equals(username);
+
+        team.getMembers().remove(user);
+
+        if (isCreator) {
             if (team.getMembers().isEmpty()) {
                 teamRepository.delete(team);
+                removeTeamAdminRole(user);
+                userRepository.save(user);
+                reAuthenticate(username);
                 return;
+            } else {
+                User newCreator = team.getMembers().iterator().next();
+                team.setCreatedBy(newCreator);
             }
-            // Select the first remaining member as the new creator
-            User newCreator = team.getMembers().iterator().next();
-            team.setCreatedBy(newCreator);
-        } else {
-            team.getMembers().remove(user);
         }
 
         teamRepository.save(team);
+
+        if (user.getRoles().stream().anyMatch(role -> role.getName().equals(ROLE_TEAM_ADMIN))) {
+            removeTeamAdminRole(user);
+            userRepository.save(user);
+            reAuthenticate(username);
+        }
     }
+
 
     @Transactional
     public void deleteTeam(Long teamId, String username) {
         Team team = findById(teamId);
+        User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
         if (!team.getCreatedBy().getUsername().equals(username)) {
             throw new AccessDeniedException("You are not the admin of the team: " + username);
         }
         teamRepository.delete(team);
+        removeTeamAdminRole(user);
+        userRepository.save(user);
+        reAuthenticate(username);
+
     }
 
     @Transactional(readOnly = true)
@@ -165,5 +185,17 @@ public class TeamService {
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new ResourceNotFoundException(USER_NOT_FOUND_PREFIX + username));
         return teamRepository.findAllByCreatedBy(user);
+    }
+
+    private void removeTeamAdminRole(User user) {
+        user.getRoles().removeIf(role -> role.getName().equals(ROLE_TEAM_ADMIN));
+    }
+
+    private void reAuthenticate(String username) {
+        OAuth2AuthenticationToken auth =
+                (OAuth2AuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+
+        Map<String, Object> attributes = auth.getPrincipal().getAttributes();
+        securityUtil.reAuthenticate(username, attributes);
     }
 }

@@ -52,7 +52,6 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     @Override
     @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) throws OAuth2AuthenticationException {
-        // 1. Încarcă datele userului de bază de la Bitbucket
         OAuth2User oauthUser = new DefaultOAuth2UserService().loadUser(userRequest);
         String username = oauthUser.getAttribute("username");
         if (username == null) {
@@ -69,10 +68,8 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
             if (exists) {
                 throw new UserAlreadyExistsException("User already exists");
             }
-            // Creează cont nou
             return createNewUser(oauthUser, userRequest, username);
         } else {
-            // Login: eroare dacă nu există
             if (!exists) {
                 throw new UserNotFoundException("User not found");
             }
@@ -85,7 +82,7 @@ public class CustomOAuth2UserService implements OAuth2UserService<OAuth2UserRequ
     /**
      * Construiește DefaultOAuth2User cu rolurile stocate în baza de date.
      */
-    private OAuth2User buildOAuth2User(User appUser, Map<String,Object> attributes) {
+    public OAuth2User buildOAuth2User(User appUser, Map<String,Object> attributes) {
         Set<GrantedAuthority> auth = appUser.getRoles().stream()
                 .map(r -> new SimpleGrantedAuthority(r.getName()))
                 .collect(Collectors.toSet());
