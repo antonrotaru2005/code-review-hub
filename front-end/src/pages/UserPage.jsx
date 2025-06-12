@@ -556,6 +556,11 @@ const handleSearchId = (e) => {
     }
   };
 
+  const handleClearChat = () => {
+    setChatMessages([]);
+    localStorage.removeItem('chatMessages');
+  };
+
   const handleLogout = async () => {
     try {
       const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
@@ -570,11 +575,11 @@ const handleSearchId = (e) => {
       console.error('Logout error:', err);
       setError('Failed to log out. Please try again.');
       return;
+    } finally {
+      setUser(null);
+      document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      navigate('/');
     }
-    setUser(null);
-    localStorage.clear();
-    document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
-    navigate('/');
   };
 
   const handleSwitchToAdmin = () => navigate('/admin');
@@ -1255,7 +1260,16 @@ const handleSearchId = (e) => {
         <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
           <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
             <span className="font-semibold">AI Assistant</span>
-            <button onClick={() => setChatOpen(false)}>✕</button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleClearChat} 
+                className="text-sm hover:bg-white/20 rounded px-2 py-1 transition-colors"
+                title="Clear chat history"
+              >
+                Clear Chat
+              </button>
+              <button onClick={() => setChatOpen(false)}>✕</button>
+            </div>
           </div>
           <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'}`}>
             {chatMessages.map((m, i) => (
@@ -1508,16 +1522,6 @@ const handleSearchId = (e) => {
 
 /* Mobile (≤576px) – orice mobil, inclusiv L/M/S/XS */
 @media (max-width: 576px) {
-  /* Ajustări fereastră AI Assistant */
-  div[class*="fixed bottom-24 right-5 w-80 h-96"] {
-    width: 90vw !important;
-    height: 60vh !important;
-    max-width: 380px;
-    max-height: 350px;
-    right: 0.5rem !important;
-    bottom: 4.5rem !important;
-  }
-
   /* Container header: mutăm în column, pentru a lăsa spațiu butonului poziționat absolut */
   .feedback-header-container {
     display: flex;

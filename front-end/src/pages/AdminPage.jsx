@@ -103,9 +103,7 @@ export default function AdminPage() {
   useEffect(() => {
     async function initAdmin() {
       try {
-        const adminUser = await getUserInfo();
-        console.log(adminUser);
-        
+        const adminUser = await getUserInfo();        
         if (!adminUser) {
           throw new Error('You are not logged in. Please log in or sign up to access this page.');
         }
@@ -185,6 +183,11 @@ export default function AdminPage() {
     }
   };
 
+  const handleClearChat = () => {
+    setChatMessages([]);
+    localStorage.removeItem('chatMessages');
+  };
+
   const handleUserSelect = async (user, teamId = null) => {
     setSelectedUser(user);
     setStats(null);
@@ -208,11 +211,22 @@ export default function AdminPage() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, { method: 'POST', credentials: 'include' });
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`Logout request failed: ${response.status} - ${await response.text()}`);
+      }
     } catch (err) {
-      console.error('Logout failed', err);
+      console.error('Logout error:', err);
+      setError('Failed to log out. Please try again.');
+      return;  
     } finally {
-      navigate('/', { replace: true });
+      setUser(null);
+      document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
+      navigate('/');
     }
   };
 
@@ -656,7 +670,16 @@ export default function AdminPage() {
         <div className={`fixed bottom-24 right-5 w-80 h-96 ${theme === 'light' ? 'bg-white text-black' : 'bg-gray-900 text-white'} rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden`}>
           <div className={`px-4 py-2 ${theme === 'light' ? 'bg-blue-600' : 'bg-purple-600'} text-white flex justify-between items-center`}>
             <span className="font-semibold">AI Assistant</span>
-            <button onClick={() => setChatOpen(false)}>✕</button>
+            <div className="flex gap-2">
+              <button 
+                onClick={handleClearChat} 
+                className="text-sm hover:bg-white/20 rounded px-2 py-1 transition-colors"
+                title="Clear chat history"
+              >
+                Clear Chat
+              </button>
+              <button onClick={() => setChatOpen(false)}>✕</button>
+            </div>
           </div>
           <div className={`flex-1 overflow-y-auto p-4 space-y-2 ${theme === 'light' ? 'bg-gray-100' : 'bg-gray-800'}`}>
             {chatMessages.map((m, i) => (
