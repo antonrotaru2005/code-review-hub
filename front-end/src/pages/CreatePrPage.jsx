@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Container, Card } from 'react-bootstrap';
 import { useNavigate, Link } from 'react-router-dom';
-import { FaInfoCircle, FaLink, FaCheck, FaSave, FaSun, FaMoon, FaBars, FaTimes } from 'react-icons/fa';
+import { FaInfoCircle, FaLink, FaCheck, FaSave, FaSun, FaMoon, FaBars, FaTimes, FaCheckCircle } from 'react-icons/fa';
 import { getUserInfo } from '../api/user';
 import { useTheme } from '../contexts/ThemeContext';
 
@@ -11,6 +11,7 @@ export default function CreatePrPage() {
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isCopied, setIsCopied] = useState(false); // Stare pentru confirmarea copiei
   const didFetchRef = useRef(false);
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
@@ -35,7 +36,6 @@ export default function CreatePrPage() {
             credentials: 'include',
             headers: { 'Content-Type': 'application/json' }
           });
-          console.log('Response GET /api/user/webhook-token:', { status: response.status });
           if (response.ok) {
             const data = await response.json();
             setWebhookToken(data.token);
@@ -43,11 +43,6 @@ export default function CreatePrPage() {
             setWebhookToken(null);
           }
         } catch (tokenErr) {
-          console.error('Failed to fetch webhook token:', {
-            message: tokenErr.message,
-            status: tokenErr.message.match(/\d{3}/)?.[0],
-            stack: tokenErr.stack
-          });
           setWebhookToken(null);
         }
       } catch (err) {
@@ -66,13 +61,24 @@ export default function CreatePrPage() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, { method: 'POST', credentials: 'include' });
-    } catch {}
-    finally {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`Logout request failed: ${response.status} - ${await response.text()}`);
+      }
+    } catch (err) {
+      console.error('Logout error:', err);
+      setError('Failed to log out. Please try again.');
+      return;  
+    } finally {
       setUser(null);
       setWebhookToken(null);
       setError(null);
       setLoading(false);
+      document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
       navigate('/');
     }
   };
@@ -80,6 +86,22 @@ export default function CreatePrPage() {
   // Toggle mobile menu
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
+  };
+
+  // Handle URL copy
+  const handleCopyUrl = async () => {
+    if (webhookToken) {
+      const url = `https://nomadicdata.group/webhook/bitbucket/${webhookToken}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000); // Mesajul dispare după 2 secunde
+      } catch (err) {
+        console.error('Failed to copy URL:', err);
+        setError('Failed to copy URL to clipboard.');
+        setTimeout(() => setError(null), 2000);
+      }
+    }
   };
 
   if (loading) {
@@ -273,7 +295,7 @@ export default function CreatePrPage() {
       )}
 
       <main className={`relative z-40 px-6 py-4 flex-grow flex items-center justify-center ${theme === 'light' ? 'bg-white' : 'bg-transparent'}`}>
-        <Container className="text-center max-w-lg">
+        <Container className="text-center max-w-md md:max-w-lg">
           <Card className={`bg-transparent border border-${theme === 'light' ? 'black/10' : 'purple-500/30'} rounded-2xl p-4 shadow-lg`}>
             <Card.Header className={`bg-gradient-to-r ${theme === 'light' ? 'from-blue-800 to-blue-900' : 'from-purple-800 to-indigo-900'} text-${theme === 'light' ? 'white' : 'white'} text-lg font-bold py-3 rounded-t-2xl flex items-center`}>
               <FaInfoCircle className={`w-5 h-5 mr-2 ${theme === 'light' ? 'text-blue-300' : 'text-purple-300'}`} />
@@ -285,14 +307,25 @@ export default function CreatePrPage() {
                   <FaInfoCircle className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
                   <span className={theme === 'light' ? 'text-black' : 'text-white'}>In Bitbucket, go to <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Repository Settings → Webhooks</strong>.</span>
                 </li>
-                <li className="flex items-start">
+                <li className="flex items-start relative">
                   <FaLink className={`w-4 h-4 mr-2 ${theme === 'light' ? 'text-blue-400' : 'text-purple-400'} mt-0.5 flex-shrink-0`} />
                   <span className={theme === 'light' ? 'text-black' : 'text-white'}>
                     <strong className={theme === 'light' ? 'text-blue-300' : 'text-purple-300'}>Add a new webhook with URL:</strong>{" "}
                     {webhookToken ? (
-                      <code className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} text-${theme === 'light' ? 'text-black' : 'text-white'} px-1.5 py-0.5 rounded-lg shadow-sm`}>
-                        localhost:8080/webhook/bitbucket/{webhookToken}
-                      </code>
+                      <span className="relative">
+                        <code
+                          className={`bg-${theme === 'light' ? 'black/20' : 'black/90'} text-${theme === 'light' ? 'text-black' : 'text-white'} px-1.5 py-0.5 rounded cursor-pointer hover:bg-${theme === 'light' ? 'black/30' : 'black/70'} break-all`}
+                          onClick={handleCopyUrl}
+                          title="Click to copy"
+                        >
+                          https://nomadicdata.group/webhook/bitbucket/{webhookToken}
+                        </code>
+                        {isCopied && (
+                          <span className={`text-xs ${theme === 'light' ? 'text-blue-600' : 'text-white-600'} font-semibold ml-2 bg-${theme === 'light' ? 'blue-100' : 'purple-900'} px-1 rounded`}>
+                            Copied!
+                          </span>
+                        )}
+                      </span>
                     ) : (
                       <span>
                         <span className={theme === 'light' ? 'text-red-600' : 'text-red-400'}>Webhook inactive. </span>
@@ -354,8 +387,27 @@ export default function CreatePrPage() {
         .card-body {
           background-color: transparent !important;
         }
+        code {
+          word-break: break-all !important;
+          overflow-wrap: break-word !important;
+          display: inline-block;
+          max-width: 100%;
+        }
         html, body {
           background-color: ${theme === 'light' ? '#ffffff' : '#000000'} !important;
+        }
+
+        @media (max-width: 640px) {
+          .card {
+            width: 90vw !important;
+            max-width: 100% !important;
+          }
+          .card-body ol li span {
+            font-size: 0.875rem !important;
+          }
+          code {
+            font-size: 0.75rem !important;
+          }
         }
       `}</style>
     </div>

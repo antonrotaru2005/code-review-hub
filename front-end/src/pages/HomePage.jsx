@@ -10,15 +10,22 @@ export default function HomePage() {
   const [loading, setLoading] = useState(true);
   const [activeSection, setActiveSection] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [err, setError] = useState(null);
   const navigate = useNavigate();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
     async function fetchUser() {
+      setLoading(true);
       try {
         const u = await getUserInfo();
-        setUser(u);
-      } catch {
+        if (u && u.username) {
+          setUser(u);
+        } else {
+          setUser(null);
+        }
+      } catch (err) {
+        console.log('Your not logged in');
         setUser(null);
       } finally {
         setLoading(false);
@@ -39,11 +46,21 @@ export default function HomePage() {
 
   const handleLogout = async () => {
     try {
-      await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, { method: 'POST', credentials: 'include' });
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/logout`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) {
+        throw new Error(`Logout request failed: ${response.status} - ${await response.text()}`);
+      }    
     } catch (err) {
-      console.error('Logout failed', err);
+      console.error('Logout error:', err);
+      setError('Failed to log out. Please try again.');
+      return;    
     } finally {
       setUser(null);
+      document.cookie = 'JSESSIONID=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/';
       navigate('/');
     }
   };
