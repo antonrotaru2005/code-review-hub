@@ -33,38 +33,55 @@ com.review.reviewservice
 │   ├── BitbucketProperties
 │   ├── RestTemplateConfig
 │   ├── SecurityConfig
+│   ├── WebConfig
 │   └── WebSocketConfig
 ├── controller
 │   ├── AdminController
 │   ├── ChatController
 │   ├── FeedbackController
+│   ├── SpaRedirectController
+│   ├── TeamController
 │   ├── UserController
 │   └── WebhookController
 ├── dto
 │   ├── BitbucketWebhookPayload
 │   ├── ChatRequestDto
 │   ├── ChatResponseDto
+│   ├── CreateTeamDto
 │   ├── DiffstatEntry
 │   ├── DiffstatResponse
 │   ├── FeedbackDto
 │   ├── FileData
 │   ├── FileInfo
+│   ├── InlineComment
+│   ├── JoinTeamDto
 │   ├── MessageDto
-│   └── UserDto
+│   ├── TeamDto
+│   ├── UserDto
+│   └── UserStatsDto
 ├── exceptions
+│   ├── AccessDeniedException
+│   ├── AlreadyMemberException
+│   ├── CodeReviewServiceException
+│   ├── ResourceNotFoundException
+│   ├── TeamAlreadyExistsException
+│   ├── TeamNotFoundException
 │   ├── UserAlreadyExistsException
-│   └── UserNotFoundException
+│   ├── UserNotFoundException
+│   └── WrongTeamPasswordException
 ├── model
 │   └── entity
 │       ├── AiModel
 │       ├── Feedback
 │       ├── Role
+│       ├── Team
 │       ├── User
 │       └── WebhookToken
 ├── repository
 │   ├── AiModelRepository
 │   ├── FeedbackRepository
 │   ├── RoleRepository
+│   ├── TeamRepository
 │   ├── UserRepository
 │   └── WebhookTokenRepository
 ├── service
@@ -74,7 +91,11 @@ com.review.reviewservice
 │   ├── CustomOAuth2UserService
 │   ├── EmailFetcherService
 │   ├── FeedbackService
+│   ├── StatisticsService
+│   ├── TeamServie
 │   └── UserService
+├── util
+│   └── SecurityUtil
 ├── resources
 │   ├── bitbucket-json (example payloads)
 │   ├── db.changelog (Liquibase migrations)
@@ -110,7 +131,6 @@ FRONT-END
 │   ├── App.js
 │   ├── config.js
 │   └── index.js
-├── .env
 ├── .gitignore
 ├── tailwind.config.js
 └── package-lock.json
@@ -180,6 +200,7 @@ npm start
 * User authentication and authorization
 * Database migrations using Liquibase
 * Feedback management system
+* Team management system
 * AI assistant integration on user pages
 * User page functionalities
 * Admin page functionalities
@@ -187,5 +208,5 @@ npm start
 
 ## Developers
 
-* Anton Rotaru
-* Eva Merculov
+* Anton Rotaru (Back-end)
+* Eva Merculov (Front-end)
