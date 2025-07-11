@@ -38,13 +38,24 @@ pipelines:
                 REMOTE_PATH: '/root/codereview/code-review-app'
                 LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
                 EXTRA_ARGS: '--recursive'
+                REMOTE_PATH: '/root/codereview/code-review-app'
+                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
+                EXTRA_ARGS: '--recursive'
             - pipe: atlassian/ssh-run:0.4.0
               variables:
                 SSH_USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
                 COMMAND: |
+                  echo "Starting Postgres and App with docker-compose"
                   echo "Ensuring Postgres container is running"
                   docker start postgres || true
                   echo "Starting App with docker-compose"
                   cd /root/codereview/code-review-app
+                  export SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL
+                  export SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME
+                  export SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD
+                  export POSTGRES_DB=$POSTGRES_DB
+                  export POSTGRES_USER=$POSTGRES_USER
+                  export POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+                  docker-compose up -d --build
                   docker-compose up -d --build
