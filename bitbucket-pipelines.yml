@@ -1,7 +1,6 @@
 image: node:20
 options:
   docker: true
-
 pipelines:
   branches:
     main:
@@ -31,17 +30,14 @@ pipelines:
           name: Deploy to Server
           deployment: production
           script:
-            - pipe: atlassian/scp-deploy:0.3.14
+            - pipe: atlassian/scp-deploy:1.0.0
               variables:
                 USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
-                REMOTE_PATH: '/root/codereview/code-review-app'
-                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
-                EXTRA_ARGS: '--recursive'
-                REMOTE_PATH: '/root/codereview/code-review-app'
-                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
-                EXTRA_ARGS: '--recursive'
-            - pipe: atlassian/ssh-run:0.4.0
+                REMOTE_PATH: "/root/codereview/code-review-app"
+                LOCAL_PATH: "front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml"
+                EXTRA_ARGS: "--recursive"
+            - pipe: atlassian/ssh-run:1.0.0
               variables:
                 SSH_USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
