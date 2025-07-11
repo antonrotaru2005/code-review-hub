@@ -1,7 +1,11 @@
-version: '3.8'
+version: "3.8"
+
 services:
   app:
-    image: code-review-app:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: code-review-app
     ports:
       - "8080:8080"
     depends_on:
@@ -11,6 +15,7 @@ services:
       - SPRING_DATASOURCE_USERNAME=${SPRING_DATASOURCE_USERNAME}
       - SPRING_DATASOURCE_PASSWORD=${SPRING_DATASOURCE_PASSWORD}
     restart: always
+
   postgres:
     image: postgres:latest
     environment:

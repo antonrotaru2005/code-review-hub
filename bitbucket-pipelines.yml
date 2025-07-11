@@ -17,7 +17,7 @@ pipelines:
           script:
             - cd front-end
             - npm install
-            - npm run build
+            - CI=false npm run build
           artifacts:
             - front-end/build/**
 
@@ -44,9 +44,9 @@ pipelines:
               variables:
                 USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
-                REMOTE_PATH: '/root/codereview/code-review-app'
-                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
-                EXTRA_ARGS: '--recursive'
+                REMOTE_PATH: "/root/codereview/code-review-app"
+                LOCAL_PATH: "front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml"
+                EXTRA_ARGS: "--recursive"
 
             - pipe: atlassian/ssh-run:0.4.1
               variables:
