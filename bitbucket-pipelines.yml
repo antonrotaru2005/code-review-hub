@@ -1,0 +1,60 @@
+# Imaginea de bază pentru pașii care nu specifică o imagine proprie
+image: node:20
+
+# Activează suportul pentru comenzi Docker
+options:
+  docker: true
+
+# Definim pipeline-urile pentru branch-ul main
+pipelines:
+  branches:
+    main:
+      # Pasul 1: Construiește front-end-ul React
+      - step:
+          name: Build Front-end
+          caches:
+            - node
+          script:
+            - cd front-end
+            - npm install
+            - npm run build
+          artifacts:
+            - front-end/build/**
+
+      # Pasul 2: Construiește back-end-ul Java
+      - step:
+          name: Build Back-end
+          image: maven:3.8-openjdk-17
+          caches:
+            - maven
+          script:
+            - cd back-end
+            - cp -r ../front-end/build/* src/main/resources/static/
+            - mvn clean package -DskipTests
+          artifacts:
+            - back-end/target/*.jar
+            - back-end/src/main/resources/static/**
+
+      # Pasul 3: Deploy pe server
+      - step:
+          name: Deploy to Server
+          deployment: production
+          script:
+            - pipe: atlassian/scp-deploy:0.3.7
+              variables:
+                USER: $SERVER_USERNAME
+                SERVER: $SERVER_IP
+                REMOTE_PATH: '/root/codereview/code-review-app'
+                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
+                EXTRA_ARGS: '--recursive'
+
+            - pipe: atlassian/ssh-run:0.4.1
+              variables:
+                SSH_USER: $SERVER_USERNAME
+                SERVER: $SERVER_IP
+                COMMAND: |
+                  echo "Ensuring Postgres container is running"
+                  docker start postgres || true
+                  echo "Starting App with docker-compose"
+                  cd /root/codereview/code-review-app
+                  docker-compose up -d --build
