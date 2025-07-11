@@ -35,21 +35,20 @@ pipelines:
               variables:
                 USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
-                REMOTE_PATH: "/root/codereview/code-review-app"
-                LOCAL_PATH: "front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml"
-                EXTRA_ARGS: "--recursive"
+                REMOTE_PATH: '/root/codereview/code-review-app'
+                LOCAL_PATH: 'front-end/build/* back-end/target/*.jar Dockerfile docker-compose.yml'
+                EXTRA_ARGS: '--recursive'
             - pipe: atlassian/ssh-run:0.4.0
               variables:
                 SSH_USER: $SERVER_USERNAME
                 SERVER: $SERVER_IP
                 COMMAND: |
-                  echo "Starting Postgres container"
-                  docker start postgres || docker run -d --name postgres -e POSTGRES_DB=$POSTGRES_DB -e POSTGRES_USER=$POSTGRES_USER -e POSTGRES_PASSWORD=$POSTGRES_PASSWORD -v postgres_data:/var/lib/postgresql/data postgres:latest
-                  echo "Building Docker image on server"
+                  echo "Starting Postgres and App with docker-compose"
                   cd /root/codereview/code-review-app
-                  docker build -t code-review-app:latest .
-                  echo "Stopping and removing existing container"
-                  docker stop code-review-app || true
-                  docker rm code-review-app || true
-                  echo "Starting new container"
-                  docker run -d --name code-review-app -p 8080:8080 --link postgres:postgres -e SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL -e SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME -e SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD code-review-app:latest
+                  export SPRING_DATASOURCE_URL=$SPRING_DATASOURCE_URL
+                  export SPRING_DATASOURCE_USERNAME=$SPRING_DATASOURCE_USERNAME
+                  export SPRING_DATASOURCE_PASSWORD=$SPRING_DATASOURCE_PASSWORD
+                  export POSTGRES_DB=$POSTGRES_DB
+                  export POSTGRES_USER=$POSTGRES_USER
+                  export POSTGRES_PASSWORD=$POSTGRES_PASSWORD
+                  docker-compose up -d --build
